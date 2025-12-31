@@ -1,7 +1,8 @@
 import ru from "../locales/ru.json"
+import en from "../locales/en.json"
 import { persistedState } from "../utils/persisted-state.svelte"
 
-export const locales: Record<string, Record<string, string>> = { en: {}, ru }
+export const locales: Record<string, Record<string, string>> = { en, ru }
 
 export const locale = persistedState<string>("locale", "en")
 const translation = $derived(locales[locale.state.value])

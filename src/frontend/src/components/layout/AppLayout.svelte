@@ -2,15 +2,25 @@
   import { Tabs } from "bits-ui";
   import { t } from "../../data/locale.svelte";
   import GroupsView from "../../modules/groups/GroupsView.svelte";
+  import InterfacesView from "../../modules/interfaces/InterfacesView.svelte";
+  import SettingsView from "../../modules/settings/SettingsView.svelte";
+  import { aliases } from "../../data/aliases.svelte";
   // import LogsPanel from "../../modules/logs/LogsPanel.svelte";
-  // import SettingsPanel from "../../modules/settings/SettingsPanel.svelte";
   import Overlay from "../feedback/Overlay.svelte";
   import SnowField from "../feedback/SnowField.svelte";
   import Toast from "../feedback/Toast.svelte";
   import ScrollToTop from "../feedback/ScrollToTop.svelte";
+  import ConsoleWindow from "../console/ConsoleWindow.svelte";
   import HeaderSettings from "./HeaderSettings.svelte";
+  import { settings } from "../../data/settings.svelte";
+  import { onMount } from "svelte";
 
   let active_tab = $state("groups");
+
+  onMount(() => {
+    aliases.load();
+    settings.load();
+  });
 </script>
 
 <!-- TODO: add locales -->
@@ -19,6 +29,7 @@
 <Toast />
 <Overlay />
 <ScrollToTop />
+<ConsoleWindow />
 <SnowField variant="front" />
 
 <main>
@@ -26,17 +37,25 @@
     <nav>
       <Tabs.List>
         <Tabs.Trigger value="groups">{t("Groups")}</Tabs.Trigger>
-        <!-- <Tabs.Trigger value="settings">{t("Settings")}</Tabs.Trigger> -->
-        <!-- <Tabs.Trigger value="logs">{t("Logs")}</Tabs.Trigger> -->
+        <Tabs.Trigger value="interfaces">{t("Interfaces")}</Tabs.Trigger>
+        <Tabs.Trigger value="settings">{t("Settings")}</Tabs.Trigger>
       </Tabs.List>
-      <div class="header-settings">
+      <div class="header-controls">
         <HeaderSettings />
       </div>
     </nav>
     <article>
-      <Tabs.Content value="groups">
+      <!-- Keep-alive implementation using display style -->
+      <div style:display={active_tab === "groups" ? "block" : "none"}>
         <GroupsView />
-      </Tabs.Content>
+      </div>
+      <div style:display={active_tab === "interfaces" ? "block" : "none"}>
+        <InterfacesView visible={active_tab === "interfaces"} />
+      </div>
+      <div style:display={active_tab === "settings" ? "block" : "none"}>
+        <SettingsView />
+      </div>
+
       <!-- <Tabs.Content value="settings">
         <SettingsPanel />
       </Tabs.Content> -->
@@ -65,8 +84,10 @@
     justify-content: space-between;
   }
 
-  .header-settings {
-    overflow: hidden;
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
   }
 
   :global {

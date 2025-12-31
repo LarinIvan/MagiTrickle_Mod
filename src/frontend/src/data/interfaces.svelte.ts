@@ -1,10 +1,10 @@
 import { type Interfaces } from "../types";
 import { fetcher } from "../utils/fetcher";
 
-export const INTERFACES = $state<string[]>(
+export const INTERFACES = $state<Interfaces["interfaces"]>(
   await fetcher
     .get<Interfaces>("/system/interfaces")
-    .then((data) => data.interfaces.map((item) => item.id))
+    .then((data) => data.interfaces)
     .catch((error) => {
       console.error(error);
       return [];

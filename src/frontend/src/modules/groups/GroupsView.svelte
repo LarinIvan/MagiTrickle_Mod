@@ -9,13 +9,30 @@
   import { overlay, toast } from "../../utils/events";
   import { persistedState } from "../../utils/persisted-state.svelte";
   import Button from "../../components/ui/Button.svelte";
+  import Select from "../../components/ui/Select.svelte";
   import Tooltip from "../../components/ui/Tooltip.svelte";
-  import { Add, Upload, Download, Save } from "../../components/ui/icons";
+  import {
+    Add,
+    Upload,
+    Download,
+    Save,
+    CollapseAll,
+    ExpandAll,
+    Delete,
+    MoveUp,
+    MoveDown,
+  } from "../../components/ui/icons";
   import { t } from "../../data/locale.svelte";
   import { droppable } from "../../lib/dnd";
+
+  import { INTERFACES } from "../../data/interfaces.svelte";
+  import { getInterfaceLabel } from "../../data/aliases.svelte";
+
   import GroupPanel from "./components/GroupPanel.svelte";
   import ImportRulesDialog from "./dialogs/ImportRulesDialog.svelte";
   import ImportConfigDialog from "./dialogs/ImportConfigDialog.svelte";
+
+  import { groupsStore } from "../../data/groups.svelte";
 
   function handleSaveShortcut(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -29,7 +46,6 @@
   const INITIAL_RULES_LIMIT = 30 as const;
   const INCREMENT_RULES_LIMIT = 40 as const;
 
-  let data: Group[] = $state([]);
   let showed_limit: number[] = $state([]);
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
@@ -47,6 +63,66 @@
   });
   function resetImportConfigModal() {
     importConfigModal = { open: false, groups: [], fileName: "" };
+  }
+
+  // --- Bulk Selection State ---
+  let selectedGroupIds = $state<Set<string>>(new Set());
+  let selectionBox = $state<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+    active: boolean;
+  } | null>(null);
+  let isSelecting = $state(false);
+
+  function handleGroupSelect(event: CustomEvent<{ originalEvent: MouseEvent; id: string }>) {
+    const { originalEvent: e, id } = event.detail;
+    const index = groupsStore.all.findIndex((g) => g.id === id);
+    if (index === -1) return;
+
+    if (e.ctrlKey || e.metaKey) {
+      // Toggle selection
+      if (selectedGroupIds.has(id)) {
+        selectedGroupIds.delete(id);
+      } else {
+        selectedGroupIds.add(id);
+      }
+      selectedGroupIds = new Set(selectedGroupIds); // Trigger reactivity
+    } else if (e.shiftKey) {
+      // Range selection
+      // Find last selected index (or 0 if none)
+      let lastIndex = -1;
+      const ids = Array.from(selectedGroupIds);
+      if (ids.length > 0) {
+        const firstSelectedIdx = groupsStore.all.findIndex((g) => g.id === ids[0]); // simplistic
+        const start = Math.min(firstSelectedIdx, index);
+        const end = Math.max(firstSelectedIdx, index);
+
+        // Add range
+        for (let i = start; i <= end; i++) {
+          selectedGroupIds.add(groupsStore.all[i].id);
+        }
+        selectedGroupIds = new Set(selectedGroupIds);
+      } else {
+        selectedGroupIds.add(id);
+        selectedGroupIds = new Set(selectedGroupIds);
+      }
+    } else {
+      // Single select (replace)
+      if (!selectedGroupIds.has(id) || selectedGroupIds.size > 1) {
+        selectedGroupIds.clear();
+        selectedGroupIds.add(id);
+        selectedGroupIds = new Set(selectedGroupIds);
+      }
+    }
+  }
+
+  function clearSelection() {
+    if (selectedGroupIds.size > 0) {
+      selectedGroupIds.clear();
+      selectedGroupIds = new Set(selectedGroupIds);
+    }
   }
 
   function cloneGroupWithNewIds(group: Group): Group {
@@ -79,10 +155,116 @@
   };
 
   function handleGroupSlotDrop(source: GroupDragData, target: GroupDropSlotData) {
-    const { group_index: from_index } = source;
+    const { group_index: from_index, group_id } = source;
     const { group_index: to_index, insert } = target;
+
+    // If source is in selection, we do bulk move
+    if (selectedGroupIds.has(group_id)) {
+      moveSelectedGroups(to_index, insert);
+      return;
+    }
+
     if (from_index === to_index && insert !== "after") return;
     changeGroupIndex(from_index, to_index, insert);
+  }
+
+  function moveSelectedGroups(targetIndex: number, insert: "before" | "after") {
+    const selectedIndices = groupsStore.all
+      .map((g, i) => (selectedGroupIds.has(g.id) ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (selectedIndices.length === 0) return;
+
+    // 1. Separate data
+    const selectedGroups: Group[] = [];
+    const selectedLimits: number[] = [];
+
+    const remainingData: Group[] = [];
+    const remainingLimits: number[] = [];
+
+    groupsStore.all.forEach((g, i) => {
+      if (selectedGroupIds.has(g.id)) {
+        selectedGroups.push(g);
+        selectedLimits.push(showed_limit[i]);
+      } else {
+        remainingData.push(g);
+        remainingLimits.push(showed_limit[i]);
+      }
+    });
+
+    // 2. Calculate insertion index in 'remainingData'
+    let insertionIndex = 0;
+
+    const targetGroup = groupsStore.all[targetIndex];
+
+    // Find where targetGroup is in remainingData
+    let targetInRemaining = remainingData.findIndex((g) => g.id === targetGroup.id);
+
+    if (targetInRemaining === -1) {
+      return;
+    }
+
+    if (insert === "before") {
+      insertionIndex = targetInRemaining;
+    } else {
+      insertionIndex = targetInRemaining + 1;
+    }
+
+    // 3. Insert
+    remainingData.splice(insertionIndex, 0, ...selectedGroups);
+    remainingLimits.splice(insertionIndex, 0, ...selectedLimits);
+
+    groupsStore.all = remainingData;
+    showed_limit = remainingLimits;
+    recomputeVisibleGroups();
+  }
+
+  function moveSelectedGroupsStep(direction: "up" | "down") {
+    // Create a set of indices to move
+    const indices = groupsStore.all
+      .map((g, i) => (selectedGroupIds.has(g.id) ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (indices.length === 0) return;
+
+    if (direction === "up") {
+      const newData = [...groupsStore.all];
+      const newLimits = [...showed_limit];
+      let moved = false;
+
+      for (let i = 1; i < newData.length; i++) {
+        if (selectedGroupIds.has(newData[i].id) && !selectedGroupIds.has(newData[i - 1].id)) {
+          // Swap with previous
+          [newData[i], newData[i - 1]] = [newData[i - 1], newData[i]];
+          [newLimits[i], newLimits[i - 1]] = [newLimits[i - 1], newLimits[i]];
+          moved = true;
+        }
+      }
+      if (moved) {
+        groupsStore.all = newData;
+        showed_limit = newLimits;
+        recomputeVisibleGroups();
+      }
+    } else {
+      // Down: Iterate from L-2 to 0
+      const newData = [...groupsStore.all];
+      const newLimits = [...showed_limit];
+      let moved = false;
+
+      for (let i = newData.length - 2; i >= 0; i--) {
+        if (selectedGroupIds.has(newData[i].id) && !selectedGroupIds.has(newData[i + 1].id)) {
+          // Swap with next
+          [newData[i], newData[i + 1]] = [newData[i + 1], newData[i]];
+          [newLimits[i], newLimits[i + 1]] = [newLimits[i + 1], newLimits[i]];
+          moved = true;
+        }
+      }
+      if (moved) {
+        groupsStore.all = newData;
+        showed_limit = newLimits;
+        recomputeVisibleGroups();
+      }
+    }
   }
 
   let searchQuery = $state("");
@@ -92,13 +274,13 @@
 
   function recomputeVisibleGroups() {
     if (!normalizedSearch) {
-      visibleGroups = data.map(
+      visibleGroups = groupsStore.all.map(
         (_, index): VisibleGroup => ({ group_index: index, ruleIndices: null }),
       );
       return;
     }
 
-    visibleGroups = data
+    visibleGroups = groupsStore.all
       .map<VisibleGroup | null>((group, index) => {
         if (!group) return null;
         const query = normalizedSearch;
@@ -137,12 +319,11 @@
     if (counter === 0) return;
     overlay.show(t("saving changes..."));
 
-    fetcher
-      .put("/groups?save=true", { groups: data })
+    groupsStore
+      .save(groupsStore.all)
       .then(() => {
         counter = 0;
         overlay.hide();
-        toast.success(t("Saved"));
       })
       .catch(() => {
         overlay.hide();
@@ -154,7 +335,7 @@
   }
 
   function initOpenState() {
-    for (const group of data) {
+    for (const group of groupsStore.all) {
       if (!open_state.current[group.id]) {
         open_state.current[group.id] = false;
       }
@@ -163,17 +344,24 @@
 
   function cleanOrphanedOpenState() {
     for (const key of Object.keys(open_state.current)) {
-      if (!data.some((group) => group.id === key)) {
+      if (!groupsStore.all.some((group) => group.id === key)) {
         delete open_state.current[key];
       }
     }
   }
 
   onMount(async () => {
-    data = (await fetcher.get<{ groups: Group[] }>("/groups?with_rules=true"))?.groups ?? [];
-    showed_limit = data.map((group) =>
-      group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
-    );
+    if (groupsStore.all.length === 0 && !groupsStore.loading) {
+      await groupsStore.load();
+    }
+
+    // Resize limit array if needed
+    if (showed_limit.length !== groupsStore.all.length) {
+      showed_limit = groupsStore.all.map((group) =>
+        group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
+      );
+    }
+
     initOpenState();
     setTimeout(cleanOrphanedOpenState, 5000);
     window.addEventListener("keydown", handleSaveShortcut);
@@ -184,16 +372,15 @@
   });
 
   $effect(() => {
-    const value = $state.snapshot(data);
+    const value = $state.snapshot(groupsStore.all);
     const new_count = untrack(() => counter) + 1;
     counter = new_count;
     if (new_count == 0) return;
-    console.debug("config state", value, new_count);
     setTimeout(checkRulesValidityState, 10);
   });
 
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
-    data[group_index].rules.unshift(rule);
+    groupsStore.all[group_index].rules.unshift(rule);
     showed_limit[group_index]++;
     recomputeVisibleGroups();
     if (!focus) return;
@@ -208,7 +395,7 @@
   }
 
   function deleteRuleFromGroup(group_index: number, rule_index: number) {
-    data[group_index].rules.splice(rule_index, 1);
+    groupsStore.all[group_index].rules.splice(rule_index, 1);
     recomputeVisibleGroups();
   }
 
@@ -220,11 +407,10 @@
     to_rule_id?: string,
     insert: "before" | "after" = "before",
   ) {
-    const clamp = (value: number, min: number, max: number) =>
-      Math.max(min, Math.min(max, value));
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-    const sourceGroup = data[from_group_index];
-    const targetGroup = data[to_group_index];
+    const sourceGroup = groupsStore.all[from_group_index];
+    const targetGroup = groupsStore.all[to_group_index];
 
     if (!sourceGroup || !targetGroup) return;
 
@@ -263,7 +449,7 @@
 
     targetRulesNext.splice(insertIndex, 0, movedRule);
 
-    const nextData = [...data];
+    const nextData = [...groupsStore.all];
 
     if (isSameGroup) {
       nextData[from_group_index] = { ...sourceGroup, rules: targetRulesNext };
@@ -272,7 +458,7 @@
       nextData[to_group_index] = { ...targetGroup, rules: targetRulesNext };
     }
 
-    data = nextData;
+    groupsStore.all = nextData;
 
     if (!isSameGroup) {
       showed_limit[from_group_index] = Math.min(
@@ -302,13 +488,13 @@
   ) {
     if (from_index === to_index && insert !== "after") return;
 
-    if (from_index < 0 || from_index >= data.length) return;
+    if (from_index < 0 || from_index >= groupsStore.all.length) return;
 
-    const g = data[from_index];
+    const g = groupsStore.all[from_index];
     const lim = showed_limit[from_index];
     if (!g) return;
 
-    data.splice(from_index, 1);
+    groupsStore.all.splice(from_index, 1);
     showed_limit.splice(from_index, 1);
 
     let target = insert === "after" ? to_index + 1 : to_index;
@@ -316,17 +502,17 @@
     if (from_index < target) target -= 1;
 
     if (target < 0) target = 0;
-    if (target > data.length) target = data.length;
+    if (target > groupsStore.all.length) target = groupsStore.all.length;
 
-    data.splice(target, 0, g);
+    groupsStore.all.splice(target, 0, g);
     showed_limit.splice(target, 0, lim);
     recomputeVisibleGroups();
   }
 
   async function addGroup() {
-    data.unshift(defaultGroup());
+    groupsStore.all.unshift(defaultGroup());
     showed_limit.unshift(INITIAL_RULES_LIMIT);
-    open_state.current[data[0].id] = true;
+    open_state.current[groupsStore.all[0].id] = true;
     recomputeVisibleGroups();
     await addRuleToGroup(0, defaultRule(), false);
     await tick();
@@ -336,13 +522,27 @@
 
   function deleteGroup(index: number) {
     if (!confirm(t("Delete this group?"))) return;
-    data.splice(index, 1);
+    groupsStore.all.splice(index, 1);
     showed_limit.splice(index, 1);
     recomputeVisibleGroups();
   }
 
+  function moveGroupUp(index: number) {
+    if (index > 0) {
+      changeGroupIndex(index, index - 1, "before");
+    }
+  }
+
+  function moveGroupDown(index: number) {
+    if (index < groupsStore.all.length - 1) {
+      changeGroupIndex(index, index + 1, "after");
+    }
+  }
+
   function exportConfig() {
-    const blob = new Blob([JSON.stringify({ groups: data })], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ groups: groupsStore.all })], {
+      type: "application/json",
+    });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = "config.mtrickle";
@@ -388,10 +588,10 @@
   }
 
   async function loadMore(group_index: number): Promise<void> {
-    if (showed_limit[group_index] >= data[group_index].rules.length) return;
+    if (showed_limit[group_index] >= groupsStore.all[group_index].rules.length) return;
     showed_limit[group_index] += INCREMENT_RULES_LIMIT;
-    if (showed_limit[group_index] > data[group_index].rules.length) {
-      showed_limit[group_index] = data[group_index].rules.length;
+    if (showed_limit[group_index] > groupsStore.all[group_index].rules.length) {
+      showed_limit[group_index] = groupsStore.all[group_index].rules.length;
       return;
     }
     loaderState.loaded();
@@ -404,7 +604,168 @@
   function closeImportRulesModal() {
     importRulesModal = { open: false, groupIndex: null };
   }
+  function startSelection(e: MouseEvent) {
+    // Ignore if clicking on interactive elements or scrollbars
+    if (
+      (e.target as HTMLElement).closest(
+        "button, input, label, a, .group-header, .rule, .bulk-actions, select, option, .console-window",
+      )
+    )
+      return;
+
+    isSelecting = true;
+    document.body.classList.add("is-selecting");
+    selectionBox = {
+      startX: e.clientX,
+      startY: e.clientY + window.scrollY,
+      currentX: e.clientX,
+      currentY: e.clientY + window.scrollY,
+      active: true,
+    };
+
+    // If not holding Ctrl/Shift, clicking background clears selection
+    if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
+      clearSelection();
+    }
+  }
+
+  function collapseAll() {
+    for (const group of groupsStore.all) {
+      open_state.current[group.id] = false;
+    }
+  }
+
+  function expandAll() {
+    for (const group of groupsStore.all) {
+      open_state.current[group.id] = true;
+    }
+  }
+
+  function updateSelection(e: MouseEvent) {
+    if (!isSelecting || !selectionBox) return;
+
+    selectionBox.currentX = e.clientX;
+    selectionBox.currentY = e.clientY + window.scrollY;
+
+    // Calculate intersection with groups
+    const boxRect = {
+      left: Math.min(selectionBox.startX, selectionBox.currentX),
+      top: Math.min(selectionBox.startY, selectionBox.currentY),
+      right: Math.max(selectionBox.startX, selectionBox.currentX),
+      bottom: Math.max(selectionBox.startY, selectionBox.currentY),
+    };
+
+    // Query all visible groups
+    const groupElements = document.querySelectorAll(".group[data-uuid]");
+    const newSelection = new Set(selectedGroupIds);
+
+    // If we provided a "base" selection before drag, we should handle that.
+    // For now, simpler: re-evaluate intersections.
+    // If Ctrl is held, we Toggle? Or Add?
+    // Windows behavior: Dragging box inverts? Or adds? Usually adds.
+
+    groupElements.forEach((el) => {
+      const rect = el.getBoundingClientRect();
+      const absoluteTop = rect.top + window.scrollY; // Adjust for scroll
+
+      // Check collision
+      const intersect = !(
+        boxRect.right < rect.left ||
+        boxRect.left > rect.right ||
+        boxRect.bottom < absoluteTop ||
+        boxRect.top > absoluteTop + rect.height
+      );
+
+      const id = el.getAttribute("data-uuid");
+      if (id) {
+        if (intersect) {
+          newSelection.add(id);
+        } else if (!e.ctrlKey) {
+          // If NOT ctrl key, and not intersecting, we might remove it if it wasn't pre-selected?
+          // Complex behavior. Let's stick to "Add to selection" for simplicity first.
+          // Actually, if I just drag box, I expect it to Select ONLY what is in box (unless Ctrl).
+          if (!selectedGroupIds.has(id)) {
+            // It wasn't selected before, so it shouldn't be now.
+          }
+        }
+      }
+    });
+
+    // A simpler approach for "in-flight" selection:
+    // Just track what is currently in box.
+    // But we need to persist what was already selected if Ctrl.
+  }
+
+  function endSelection() {
+    if (isSelecting && selectionBox) {
+      // Finalize selection logic
+      const boxRect = {
+        left: Math.min(selectionBox.startX, selectionBox.currentX),
+        top: Math.min(selectionBox.startY, selectionBox.currentY),
+        right: Math.max(selectionBox.startX, selectionBox.currentX),
+        bottom: Math.max(selectionBox.startY, selectionBox.currentY),
+      };
+
+      // Minimal drag check to avoid clearing on simple clicks handled by click handlers
+      const dragDist = Math.hypot(
+        selectionBox.currentX - selectionBox.startX,
+        selectionBox.currentY - selectionBox.startY,
+      );
+      if (dragDist > 5) {
+        const groupElements = document.querySelectorAll(".group[data-uuid]");
+        groupElements.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+          const absoluteTop = rect.top + window.scrollY;
+
+          const intersect = !(
+            boxRect.right < rect.left ||
+            boxRect.left > rect.right ||
+            boxRect.bottom < absoluteTop ||
+            boxRect.top > absoluteTop + rect.height
+          );
+
+          const id = el.getAttribute("data-uuid");
+          if (id && intersect) {
+            selectedGroupIds.add(id);
+          }
+        });
+        selectedGroupIds = new Set(selectedGroupIds);
+      }
+    }
+    isSelecting = false;
+    document.body.classList.remove("is-selecting");
+    selectionBox = null;
+  }
+
+  function deleteSelectedGroups() {
+    if (!confirm(t("Delete selected groups?"))) return;
+
+    const newData: Group[] = [];
+    const newShowedLimit: number[] = [];
+
+    groupsStore.all.forEach((g, i) => {
+      if (!selectedGroupIds.has(g.id)) {
+        newData.push(g);
+        newShowedLimit.push(showed_limit[i]);
+      }
+    });
+
+    groupsStore.all = newData;
+    showed_limit = newShowedLimit;
+    clearSelection();
+    recomputeVisibleGroups();
+  }
 </script>
+
+<svelte:window
+  on:mousedown={startSelection}
+  on:mousemove={updateSelection}
+  on:mouseup={endSelection}
+  on:keydown={(e) => {
+    if (e.key === "Escape") clearSelection();
+    handleSaveShortcut(e);
+  }}
+/>
 
 <div class="groups-page">
   <div class="group-controls">
@@ -428,15 +789,23 @@
       {/if}
       <Tooltip value={t("Export Config")}>
         <Button onclick={exportConfig}>
-          <Upload size={22} />
+          <Download size={22} />
         </Button>
       </Tooltip>
       <Tooltip value={t("Import Config")}>
         <input type="file" id="import-config" hidden accept=".mtrickle" onchange={importConfig} />
         <Button onclick={() => document.getElementById("import-config")!.click()}>
-          <Download size={22} />
+          <Upload size={22} />
         </Button>
       </Tooltip>
+      <div class="separator"></div>
+      <Tooltip value={t("Collapse All")}>
+        <Button onclick={collapseAll}><CollapseAll size={22} /></Button>
+      </Tooltip>
+      <Tooltip value={t("Expand All")}>
+        <Button onclick={expandAll}><ExpandAll size={22} /></Button>
+      </Tooltip>
+      <div class="separator"></div>
       <Tooltip value={t("Add Group")}>
         <Button onclick={addGroup}><Add size={22} /></Button>
       </Tooltip>
@@ -447,8 +816,100 @@
     <div class="no-groups">{t("No matches found")}</div>
   {/if}
 
-  {#each visibleGroups as visible, index (data[visible.group_index]?.id)}
-    {#if data[visible.group_index]}
+  {#if selectionBox && selectionBox.active}
+    <div
+      class="selection-box"
+      style="
+          left: {Math.min(selectionBox.startX, selectionBox.currentX)}px;
+          top: {Math.min(selectionBox.startY, selectionBox.currentY) - window.scrollY}px;
+          width: {Math.abs(selectionBox.currentX - selectionBox.startX)}px;
+          height: {Math.abs(selectionBox.currentY - selectionBox.startY)}px;
+      "
+    ></div>
+  {/if}
+
+  {#if selectedGroupIds.size > 0}
+    <div class="bulk-actions" transition:scale>
+      <div class="bulk-count">
+        {t("{count} selected").replace("{count}", selectedGroupIds.size.toString())}
+      </div>
+      <div class="bulk-buttons">
+        <Button
+          small
+          onclick={() => {
+            groupsStore.all.forEach((g) => {
+              if (selectedGroupIds.has(g.id)) g.enable = true;
+            });
+            groupsStore.all = [...groupsStore.all];
+          }}>{t("Enable")}</Button
+        >
+        <Button
+          small
+          onclick={() => {
+            groupsStore.all.forEach((g) => {
+              if (selectedGroupIds.has(g.id)) g.enable = false;
+            });
+            groupsStore.all = [...groupsStore.all];
+          }}>{t("Disable")}</Button
+        >
+        <div class="bulk-select-interface">
+          <Select
+            options={[
+              { value: "", label: t("Set Interface..."), disabled: true },
+              ...INTERFACES.map((item) => ({
+                value: item.id,
+                label: item.active
+                  ? getInterfaceLabel(item.id)
+                  : `<span style="color: #ff4d4f;">${t("interface.inactive")}</span> ${getInterfaceLabel(item.id)}`,
+                html: true,
+              })),
+            ]}
+            selected=""
+            onValueChange={(val) => {
+              if (!val) return;
+              groupsStore.all.forEach((g) => {
+                if (selectedGroupIds.has(g.id)) g.interface = val;
+              });
+              groupsStore.all = [...groupsStore.all];
+              // Reset selection is tricky with custom component binding, but here we just trigger action.
+              // The Select component might hold the value. We can force it back to "" if we bound a variable,
+              // but here we used `selected=""`. Let's assume onValueChange handles it,
+              // or better, bind a local variable and reset it.
+            }}
+          />
+        </div>
+        <Button small secondary onclick={clearSelection}>{t("Cancel")}</Button>
+        <div
+          class="separator-vertical"
+          style="margin: 0 0.5rem; height: 1.5rem; width: 1px; background: var(--color-border);"
+        ></div>
+
+        <Tooltip value={t("Move Up")}>
+          <Button small onclick={() => moveSelectedGroupsStep("up")}>
+            <MoveUp size={18} />
+          </Button>
+        </Tooltip>
+        <Tooltip value={t("Move Down")}>
+          <Button small onclick={() => moveSelectedGroupsStep("down")}>
+            <MoveDown size={18} />
+          </Button>
+        </Tooltip>
+
+        <div
+          class="separator"
+          style="margin: 0 0.5rem; height: 1.5rem; width: 1px; background: var(--color-border);"
+        ></div>
+        <Tooltip value={t("Delete Selected")}>
+          <Button small onclick={deleteSelectedGroups} style="color: #ff4d4f;">
+            <Delete size={18} />
+          </Button>
+        </Tooltip>
+      </div>
+    </div>
+  {/if}
+
+  {#each visibleGroups as visible, index (groupsStore.all[visible.group_index]?.id)}
+    {#if groupsStore.all[visible.group_index]}
       <div class="group-wrapper">
         {#if index === 0}
           <div
@@ -465,12 +926,16 @@
           ></div>
         {/if}
         <GroupPanel
-          bind:group={data[visible.group_index]}
+          bind:group={groupsStore.all[visible.group_index]}
           group_index={visible.group_index}
-          bind:total_groups={data.length}
+          bind:total_groups={groupsStore.all.length}
           bind:showed_limit={showed_limit[visible.group_index]}
-          bind:open={open_state.current[data[visible.group_index].id]}
+          bind:open={open_state.current[groupsStore.all[visible.group_index].id]}
+          selected={selectedGroupIds.has(groupsStore.all[visible.group_index].id)}
+          on:select={handleGroupSelect}
           {deleteGroup}
+          {moveGroupUp}
+          {moveGroupDown}
           {addRuleToGroup}
           {deleteRuleFromGroup}
           {changeRuleIndex}
@@ -501,13 +966,13 @@
   on:close={closeImportRulesModal}
   on:import={(e) => {
     const { group_index, rules } = e.detail;
-    data[group_index].rules.unshift(...rules);
+    groupsStore.all[group_index].rules.unshift(...rules);
     if (rules.length > 500) {
       showed_limit[group_index] = Math.max(showed_limit[group_index], 30);
     } else {
       showed_limit[group_index] = Math.min(
         showed_limit[group_index] + rules.length,
-        data[group_index].rules.length,
+        groupsStore.all[group_index].rules.length,
       );
     }
   }}
@@ -523,7 +988,7 @@
     if (!imported.length) return;
     for (let i = imported.length - 1; i >= 0; i--) {
       const group = imported[i];
-      data.unshift(group);
+      groupsStore.all.unshift(group);
       showed_limit.unshift(
         group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
       );
@@ -545,6 +1010,13 @@
 
   .group-wrapper:last-of-type {
     margin-bottom: 1rem;
+  }
+
+  .separator {
+    width: 1px;
+    height: 24px;
+    background: color-mix(in oklab, var(--text) 20%, transparent);
+    margin: 0 0.25rem;
   }
 
   .group-drop-slot {
@@ -604,7 +1076,10 @@
     font-size: 1rem;
     line-height: 1.3;
     min-height: 2.7rem;
-    transition: border-color 0.12s ease, box-shadow 0.18s ease, background-color 0.12s ease,
+    transition:
+      border-color 0.12s ease,
+      box-shadow 0.18s ease,
+      background-color 0.12s ease,
       color 0.12s ease;
   }
 
@@ -635,5 +1110,47 @@
     text-align: center;
     padding: 2rem 0;
     color: color-mix(in oklab, var(--text) 75%, transparent);
+  }
+
+  /* Bulk Selection Styles */
+  .selection-box {
+    position: fixed;
+    background: rgba(0, 120, 215, 0.2);
+    border: 1px solid rgba(0, 120, 215, 0.6);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .bulk-actions {
+    position: fixed;
+    top: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-dark);
+    border: 1px solid var(--accent);
+    padding: 0.75rem 1.5rem;
+    border-radius: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    z-index: 100;
+  }
+
+  :global(body.is-selecting) {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .bulk-count {
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  .bulk-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 </style>

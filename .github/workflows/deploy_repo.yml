@@ -1,0 +1,314 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          #
+          # Entware
+          #
+          - platform: entware
+            target: aarch64-3.10
+            goos: linux
+            goarch: arm64
+          - platform: entware
+            target: aarch64-3.10_kn
+            goos: linux
+            goarch: arm64
+          - platform: entware
+            target: armv7-3.2
+            goos: linux
+            goarch: arm
+            goarm: 7,softfloat
+          - platform: entware
+            target: mips-3.4
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - platform: entware
+            target: mips-3.4_kn
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - platform: entware
+            target: mipsel-3.4
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+          - platform: entware
+            target: mipsel-3.4_kn
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+
+          #
+          # OpenWRT
+          #
+          - platform: openwrt
+            target: aarch64_cortex-a53
+            goos: linux
+            goarch: arm64
+          - platform: openwrt
+            target: aarch64_cortex-a72
+            goos: linux
+            goarch: arm64
+          - platform: openwrt
+            target: aarch64_cortex-a76
+            goos: linux
+            goarch: arm64
+          - platform: openwrt
+            target: aarch64_generic
+            goos: linux
+            goarch: arm64
+          - platform: openwrt
+            target: arm_arm1176jzf-s_vfp
+            goos: linux
+            goarch: arm
+            goarm: 6
+          - platform: openwrt
+            target: arm_arm926ej-s
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - platform: openwrt
+            target: arm_cortex-a15_neon-vfpv4
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a5_vfpv4
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a7
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - platform: openwrt
+            target: arm_cortex-a7_neon-vfpv4
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a7_vfpv4
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a8_vfpv3
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a9
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - platform: openwrt
+            target: arm_cortex-a9_neon
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_cortex-a9_vfpv3-d16
+            goos: linux
+            goarch: arm
+            goarm: 7
+          - platform: openwrt
+            target: arm_fa526
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - platform: openwrt
+            target: arm_xscale
+            goos: linux
+            goarch: arm
+            goarm: 5
+          - platform: openwrt
+            target: i386_pentium4
+            goos: linux
+            goarch: 386
+            go386: sse2
+          - platform: openwrt
+            target: i386_pentium-mmx
+            goos: linux
+            goarch: 386
+            go386: softfloat
+          - platform: openwrt
+            target: loongarch64_generic
+            goos: linux
+            goarch: loong64
+          - platform: openwrt
+            target: mips_24kc
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - platform: openwrt
+            target: mips_4kec
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - platform: openwrt
+            target: mips64el_mips64r2
+            goos: linux
+            goarch: mips64le
+            gomips: softfloat
+          - platform: openwrt
+            target: mips64_mips64r2
+            goos: linux
+            goarch: mips64
+            gomips: softfloat
+          - platform: openwrt
+            target: mips64_octeonplus
+            goos: linux
+            goarch: mips64
+            gomips: softfloat
+          - platform: openwrt
+            target: mipsel_24kc_24kf
+            goos: linux
+            goarch: mipsle
+            gomips: hardfloat
+          - platform: openwrt
+            target: mipsel_24kc
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+          - platform: openwrt
+            target: mipsel_74kc
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+          - platform: openwrt
+            target: mipsel_mips32
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+          - platform: openwrt
+            target: mips_mips32
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+          - platform: openwrt
+            target: riscv64_generic
+            goos: linux
+            goarch: riscv64
+          - platform: openwrt
+            target: x86_64
+            goos: linux
+            goarch: amd64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.5
+          cache: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make upx-ucl
+
+      - name: Build and Package
+        # We need explicitly defined variables for Makefile
+        # PKG_VERSION ensures the binary reports the Git Tag as its version (e.g. v0.3.0)
+        run: |
+          PLATFORM="${{ matrix.platform }}" \
+          TARGET="${{ matrix.target }}" \
+          GOOS="${{ matrix.goos }}" \
+          GOARCH="${{ matrix.goarch }}" \
+          GOMIPS="${{ matrix.gomips }}" \
+          GOARM="${{ matrix.goarm }}" \
+          GO386="${{ matrix.go386 }}" \
+          PKG_VERSION="${{ github.ref_name }}" \
+          make build package
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipk-${{ matrix.platform }}-${{ matrix.target }}
+          path: .build/*.ipk
+          if-no-files-found: error
+          include-hidden-files: true
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for tools)
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release_assets
+          
+          # Iterate over downloaded artifacts
+          # Artifacts are in subdirectories named after the artifact name
+          find artifacts -name "*.ipk" | while read filepath; do
+            subdir_name=$(basename "$(dirname "$filepath")")
+            # subdir_name looks like "ipk-entware-aarch64-3.10"
+            
+            # Extract variant info (remove "ipk-" prefix)
+            variant=${subdir_name#ipk-}
+            
+            # New filename MUST be purely static (no version number) for /latest/ link to work forever
+            # Example: magitrickle_mod_entware-aarch64-3.10.ipk
+            new_filename="magitrickle_mod_${variant}.ipk"
+            
+            echo "Renaming artifact from $subdir_name -> $new_filename"
+            cp "$filepath" "release_assets/$new_filename"
+          done
+
+      - name: Generate Unified Packages Index
+        run: |
+          # Use local opkg-utils to index the release_assets folder
+          # The key feature: It indexes all IPKs found in the folder.
+          # The 'Filename:' field in the resulting Packages file will be relative to this folder.
+          # This matches perfectly with GitHub Releases flat structure.
+          
+          cd release_assets
+          python3 ../tools/opkg-utils/opkg-make-index . > Packages
+          gzip -c Packages > Packages.gz
+          
+          echo "Generated Index:"
+          ls -la Packages*
+          
+          echo "Sample Index Content:"
+          head -n 20 Packages
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release_assets/*.ipk
+            release_assets/Packages
+            release_assets/Packages.gz
+          fail_on_unmatched_files: true

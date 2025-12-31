@@ -3,14 +3,15 @@
 
   type Props = {
     checked: boolean;
+    mixed?: boolean; // Add mixed prop
     [key: string]: any;
   };
 
-  let { checked = $bindable(false), ...rest }: Props = $props();
+  let { checked = $bindable(false), mixed = false, ...rest }: Props = $props();
 </script>
 
-<Switch.Root bind:checked {...rest}>
-  <Switch.Thumb />
+<Switch.Root bind:checked {...rest} data-mixed={mixed}>
+  <Switch.Thumb data-mixed={mixed} />
 </Switch.Root>
 
 <style>
@@ -71,6 +72,12 @@
 
       &[data-state="unchecked"] {
         transform: translateX(0);
+      }
+
+      /* Mixed State Override */
+      &:global([data-mixed="true"]) {
+        transform: translateX(7px) !important;
+        background-color: var(--text-2) !important;
       }
     }
   }

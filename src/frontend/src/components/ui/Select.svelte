@@ -2,7 +2,7 @@
   import { Select } from "bits-ui";
   import { Check, SelectOpen } from "./icons";
 
-  type Option = { value: string; label: string };
+  type Option = { value: string; label: string; html?: boolean; color?: string };
   type Props = {
     options?: Option[];
     selected?: string;
@@ -19,16 +19,24 @@
     ...rest
   }: Props = $props();
 
-  const selected_label = $derived(
-    options.find((o) => o.value === selected)?.label ?? selected ?? "",
-  );
+  const selected_option = $derived(options.find((o) => o.value === selected));
+  const selected_label = $derived(selected_option?.label ?? selected ?? "");
 </script>
 
 <div class="select-wrap" {...rest}>
   <Select.Root type="single" {onValueChange} items={options} bind:value={selected}>
     <Select.Trigger aria-label={ariaLabel}>
       <div class="selected">
-        <div class="selected-value">{selected_label}</div>
+        <div
+          class="selected-value"
+          style={selected_option?.color ? `color: ${selected_option.color}` : ""}
+        >
+          {#if selected_option?.html}
+            {@html selected_label}
+          {:else}
+            {selected_label}
+          {/if}
+        </div>
         <div class="selected-open" aria-hidden="true">
           <SelectOpen size={16} />
         </div>
@@ -39,8 +47,14 @@
       {#each options as option}
         <Select.Item value={option.value} label={option.label}>
           {#snippet children({ selected })}
-            <div class="option">
-              <div class="option-label">{option.label}</div>
+            <div class="option" style={option.color ? `color: ${option.color} !important;` : ""}>
+              <div class="option-label">
+                {#if option.html}
+                  {@html option.label}
+                {:else}
+                  {option.label}
+                {/if}
+              </div>
               <div class="option-check">
                 {#if selected}<Check size={16} />{/if}
               </div>
@@ -55,7 +69,7 @@
 <style>
   .select-wrap {
     display: inline-block;
-    width: max-content;
+    width: fit-content;
     max-width: 90vw;
   }
 
@@ -98,7 +112,7 @@
     border: 1px solid var(--bg-light-extra);
     box-shadow: var(--shadow-popover);
     z-index: 100;
-    max-height: 12rem;
+    max-height: 20rem;
     overflow-y: auto;
     width: max-content;
     min-width: 100%;

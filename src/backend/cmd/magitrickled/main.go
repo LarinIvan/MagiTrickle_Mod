@@ -12,6 +12,7 @@ import (
 
 	"magitrickle"
 	"magitrickle/constant"
+	"magitrickle/logstream"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -57,8 +58,11 @@ func removePIDFile() {
 func main() {
 	// Настройка zerolog
 	consoleLogger := zerolog.ConsoleWriter{Out: os.Stderr}
+	broadcaster := logstream.NewBroadcaster()
 
-	log.Logger = log.Output(consoleLogger)
+	// Используем MultiLevelWriter для отправки логов и в консоль, и в веб-сокет (Broadcaster)
+	log.Logger = log.Output(zerolog.MultiLevelWriter(consoleLogger, broadcaster))
+
 	log.Info().
 		Str("version", constant.Version).
 		Msg("starting MagiTrickle daemon")
@@ -76,7 +80,7 @@ func main() {
 	}
 	defer removePIDFile()
 
-	app := magitrickle.New()
+	app := magitrickle.New(broadcaster)
 
 	log.Info().Msg("starting service")
 

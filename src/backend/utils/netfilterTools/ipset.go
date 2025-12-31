@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"sync"
 	"sync/atomic"
 
@@ -281,6 +282,39 @@ func (r *IPSet) Disable() error {
 	defer r.locker.Unlock()
 
 	return r.disable()
+}
+
+func (r *IPSet) Flush() error {
+	r.locker.Lock()
+	defer r.locker.Unlock()
+
+	if !r.enabled.Load() {
+		return nil
+	}
+
+	var errs []error
+
+	// Fallback to exec command if netlink API is limited/old
+	flushSet := func(suffix string) error {
+		setName := r.ipsetName + suffix
+		cmd := exec.Command("ipset", "flush", setName)
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("ipset flush failed: %s: %w", string(output), err)
+		}
+		return nil
+	}
+
+	if err := flushSet("_4"); err != nil {
+		errs = append(errs, err)
+	}
+	if err := flushSet("_6"); err != nil {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to flush ipsets: %v", errors.Join(errs...))
+	}
+	return nil
 }
 
 func (nh *Helper) IPSet(name string) *IPSet {

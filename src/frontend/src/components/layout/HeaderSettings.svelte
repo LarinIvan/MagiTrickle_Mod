@@ -2,6 +2,7 @@
   import Button from "../ui/Button.svelte";
   import { Locale, Gitlab, Bug } from "../ui/icons";
   import { t, locale, locales } from "../../data/locale.svelte";
+  import { updater } from "../../data/updater.svelte";
   const version = import.meta.env.VITE_PKG_VERSION || "0.0.0";
   const isDev = import.meta.env.VITE_PKG_VERSION_IS_DEV?.toLowerCase() === "true";
 
@@ -14,20 +15,20 @@
 </script>
 
 <div class="container">
-  <div class="version">
+  <div class="version" onclick={() => updater.check()}>
     <span>build: {version}</span>
     {#if isDev}
       <div class="under-construction">dev</div>
+    {/if}
+    {#if updater.checking}
+      <div class="checking-indicator mx-1 text-xs">...</div>
     {/if}
   </div>
   <div class="links">
     <a
       target="_blank"
       rel="noopener noreferrer"
-      href="https://gitlab.com/magitrickle/magitrickle/-/boards"><Bug size={22} /></a
-    >
-    <a target="_blank" rel="noopener noreferrer" href="https://gitlab.com/magitrickle/magitrickle"
-      ><Gitlab size={22} /></a
+      href="https://github.com/LarinIvan/MagiTrickle_Mod/issues"><Bug size={22} /></a
     >
   </div>
 
@@ -89,6 +90,15 @@
     justify-content: center;
     font-size: smaller;
     color: var(--text-2);
+  }
+
+  .version {
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .version:hover span {
+    color: var(--accent);
+    text-decoration: underline;
   }
 
   .locale {

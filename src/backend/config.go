@@ -254,3 +254,71 @@ func (a *App) ExportConfig() config.Config {
 		Groups: &groups,
 	}
 }
+
+const cfgInterfaceFileLocation = cfgFolderLocation + "/config_interfaces.mtrickle"
+
+func (a *App) LoadInterfaceConfig() error {
+	cfgFile, err := os.ReadFile(cfgInterfaceFileLocation)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("failed to read interface config file: %w", err)
+	}
+	aliases := make(map[string]string)
+	err = yaml.Unmarshal(cfgFile, &aliases)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal interface config file: %w", err)
+	}
+	a.SetInterfaceAliases(aliases)
+	return nil
+}
+
+func (a *App) SaveInterfaceConfig() error {
+	aliases := a.InterfaceAliases()
+	out, err := yaml.Marshal(aliases)
+	if err != nil {
+		return fmt.Errorf("failed to marshal interface config file: %w", err)
+	}
+	if err := os.MkdirAll(cfgFolderLocation, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create config folder: %w", err)
+	}
+	if err := os.WriteFile(cfgInterfaceFileLocation, out, 0600); err != nil {
+		return fmt.Errorf("failed to write interface config file: %w", err)
+	}
+	return nil
+}
+
+const cfgSettingsFileLocation = cfgFolderLocation + "/config_settings.mtrickle"
+
+func (a *App) LoadSettingsConfig() error {
+	cfgFile, err := os.ReadFile(cfgSettingsFileLocation)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("failed to read settings config file: %w", err)
+	}
+	settings := models.SettingsConfig{}
+	err = yaml.Unmarshal(cfgFile, &settings)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal settings config file: %w", err)
+	}
+	a.SetSettings(settings)
+	return nil
+}
+
+func (a *App) SaveSettingsConfig() error {
+	settings := a.Settings()
+	out, err := yaml.Marshal(settings)
+	if err != nil {
+		return fmt.Errorf("failed to marshal settings config file: %w", err)
+	}
+	if err := os.MkdirAll(cfgFolderLocation, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create config folder: %w", err)
+	}
+	if err := os.WriteFile(cfgSettingsFileLocation, out, 0600); err != nil {
+		return fmt.Errorf("failed to write settings config file: %w", err)
+	}
+	return nil
+}

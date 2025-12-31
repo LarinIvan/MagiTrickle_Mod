@@ -66,5 +66,16 @@ export const RULE_TYPES = [
 export type Interfaces = {
   interfaces: {
     id: string;
+    active: boolean;
+    ip: string;
   }[];
 };
+export interface SpeedtestResult {
+  server_id: string;
+  server_name: string;
+  server_country: string;
+  latency_ms: number;
+  download_mbps: number;
+  upload_mbps: number;
+  interface: string;
+}

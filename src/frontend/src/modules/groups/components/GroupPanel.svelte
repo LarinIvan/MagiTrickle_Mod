@@ -7,6 +7,7 @@
   import { type Group, type Rule } from "../../../types";
   import { defaultRule } from "../../../utils/defaults";
   import { INTERFACES } from "../../../data/interfaces.svelte";
+  import { getInterfaceLabel } from "../../../data/aliases.svelte";
   import { t } from "../../../data/locale.svelte";
   import { droppable, draggable } from "../../../lib/dnd";
   import Button from "../../../components/ui/Button.svelte";
@@ -22,6 +23,8 @@
     Dots,
     ImportList,
     Grip,
+    MoveUp,
+    MoveDown,
   } from "../../../components/ui/icons";
   import RuleRow from "./RuleRow.svelte";
 
@@ -31,6 +34,7 @@
     total_groups: number;
     showed_limit: number;
     open: boolean;
+    selected?: boolean;
     deleteGroup: (index: number) => void;
     addRuleToGroup: (group_index: number, rule: Rule, focus?: boolean) => void;
     deleteRuleFromGroup: (group_index: number, rule_index: number) => void;
@@ -40,6 +44,8 @@
       to_group_index: number,
       to_rule_index: number,
     ) => void;
+    moveGroupUp: (index: number) => void;
+    moveGroupDown: (index: number) => void;
     loadMore: (group_index: number) => Promise<void>;
     searchActive?: boolean;
     visibleRuleIndices?: number[] | null;
@@ -52,10 +58,13 @@
     total_groups = $bindable(),
     showed_limit = $bindable(),
     open = $bindable(),
+    selected = false,
     deleteGroup,
     addRuleToGroup,
     deleteRuleFromGroup,
     changeRuleIndex,
+    moveGroupUp,
+    moveGroupDown,
     loadMore,
     searchActive = false,
     visibleRuleIndices = null,
@@ -67,49 +76,7 @@
   let client_width = $state<number>(Infinity);
   let is_desktop = $derived(client_width > 668);
 
-  type GroupDnD = {
-    group_id: string;
-    group_index: number;
-    name: string;
-    color: string;
-    count: number;
-  };
-
-  function createGroupDragPreview(headerEl: HTMLElement, name: string, color: string, count: number) {
-    const badge = document.createElement("div");
-    badge.style.cssText =
-      "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:2147483647;transform:translateZ(0);font:600 13px/1.2 var(--font, -apple-system, system-ui, Segoe UI, Roboto, sans-serif);color:var(--text,#e5e7eb);";
-
-    const inner = document.createElement("div");
-    inner.style.cssText =
-      "display:flex;align-items:center;gap:.55rem;padding:.42rem .7rem;border-radius:.7rem;background:var(--bg-light,rgba(30,30,36,.92));border:1px solid var(--bg-light-extra,rgba(255,255,255,.12));box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:saturate(120%) blur(6px);";
-
-    const colorBadge = document.createElement("span");
-    colorBadge.style.cssText =
-      "display:inline-block;width:10px;height:10px;border-radius:999px;box-shadow:0 0 0 1px rgba(255,255,255,.25) inset;";
-    colorBadge.style.background = color || "#888";
-    inner.appendChild(colorBadge);
-
-    const title = document.createElement("span");
-    title.textContent = name || "group";
-    title.style.cssText = "max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
-    inner.appendChild(title);
-
-    const cnt = document.createElement("span");
-    cnt.textContent = `• ${count}`;
-    cnt.style.opacity = "0.8";
-    inner.appendChild(cnt);
-
-    const gripClone = headerEl.querySelector(".group-grip")?.cloneNode(true) as HTMLElement | null;
-    if (gripClone) {
-      gripClone.style.cssText += "opacity:.9;display:flex;align-items:center;margin-left:.25rem;";
-      inner.appendChild(gripClone);
-    }
-
-    badge.appendChild(inner);
-    document.body.appendChild(badge);
-    return badge;
-  }
+  // ... (keeping internal Logic) ...
 
   let filteredRuleIndices: number[] | null = $state(null);
   let displayedRulesCount = $state(0);
@@ -125,12 +92,55 @@
       ? filteredRuleIndices.length
       : group.rules.length;
   });
+  function createGroupDragPreview(
+    groupEl: HTMLElement,
+    name: string,
+    color: string,
+    count: number,
+  ) {
+    const badge = document.createElement("div");
+    badge.style.cssText =
+      "position:fixed;top:-1000px;left:-1000px;pointer-events:none;z-index:2147483647;transform:translateZ(0);font:600 13px/1.2 var(--font, -apple-system, system-ui, Segoe UI, Roboto, sans-serif);color:var(--text,#e5e7eb);";
+    const inner = document.createElement("div");
+    inner.style.cssText =
+      "display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border-radius:.6rem;background:var(--bg-light,rgba(30,30,36,.92));border:1px solid var(--bg-light-extra,rgba(255,255,255,.12));box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:saturate(120%) blur(6px);";
+
+    if (color) {
+      const dot = document.createElement("span");
+      dot.style.cssText = `width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;border:1px solid rgba(0,0,0,0.2);`;
+      inner.appendChild(dot);
+    }
+
+    const label = document.createElement("span");
+    label.textContent = name || "Group";
+    label.style.cssText =
+      "max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+    inner.appendChild(label);
+
+    if (count !== undefined) {
+      const countBadge = document.createElement("span");
+      countBadge.textContent = String(count);
+      countBadge.style.cssText = "opacity:0.6;font-size:0.85em;margin-left:auto;";
+      inner.appendChild(countBadge);
+    }
+
+    const gripClone = groupEl.querySelector(".group-grip")?.cloneNode(true) as HTMLElement | null;
+    if (gripClone) {
+      gripClone.style.cssText += "opacity:.85;display:flex;align-items:center;margin-left:0.5rem;";
+      inner.appendChild(gripClone);
+    }
+
+    badge.appendChild(inner);
+    document.body.appendChild(badge);
+    return badge;
+  }
 </script>
 
 <svelte:window bind:innerWidth={client_width} />
 
 <div
   class="group"
+  class:selected
   role="listitem"
   data-uuid={group.id}
   use:draggable={{
@@ -139,8 +149,8 @@
       group_index,
       name: group.name,
       color: group.color,
-      count: group.rules.length
-    } as GroupDnD,
+      count: group.rules.length,
+    } as GroupDragData,
     scope: "group",
     handle: ".group-grip",
     effects: { effectAllowed: "move", dropEffect: "move" },
@@ -149,7 +159,7 @@
         (node.querySelector(".group-header") ?? node) as HTMLElement,
         group.name,
         group.color || "",
-        group.rules.length
+        group.rules.length,
       ),
   }}
 >
@@ -157,6 +167,11 @@
     <div
       class="group-header"
       data-group-index={group_index}
+      onclick={(e) => {
+        // Prevent selecting if clicking interactables
+        if ((e.target as HTMLElement).closest('button, input, label, [role="button"]')) return;
+        dispatch("select", { originalEvent: e, id: group.id });
+      }}
       use:droppable={{
         data: { rule_id: "", rule_index: 0, group_id: group.id, group_index },
         scope: "rule",
@@ -182,7 +197,13 @@
 
       <div class="group-actions">
         <Select
-          options={INTERFACES.map((item) => ({ value: item, label: item }))}
+          options={INTERFACES.map((item) => ({
+            value: item.id,
+            label: item.active
+              ? getInterfaceLabel(item.id)
+              : `<span style="color: #ff4d4f;">${t("interface.inactive")}</span> ${getInterfaceLabel(item.id)}`,
+            html: true,
+          }))}
           bind:selected={group.interface}
         />
 
@@ -191,6 +212,20 @@
         </Tooltip>
 
         {#if is_desktop}
+          <Tooltip value={t("Move Up")}>
+            <Button small disabled={group_index === 0} onclick={() => moveGroupUp(group_index)}>
+              <MoveUp size={20} />
+            </Button>
+          </Tooltip>
+          <Tooltip value={t("Move Down")}>
+            <Button
+              small
+              disabled={group_index === total_groups - 1}
+              onclick={() => moveGroupDown(group_index)}
+            >
+              <MoveDown size={20} />
+            </Button>
+          </Tooltip>
           <Tooltip value={t("Delete Group")}>
             <Button small onclick={() => deleteGroup(group_index)}>
               <Delete size={20} />
@@ -218,24 +253,40 @@
               <Dots size={20} />
             {/snippet}
             {#snippet item1()}
-            <Button
-            general
-            onclick={() => {
-              addRuleToGroup(group_index, defaultRule(), true);
-              open = true;
-            }}
+              <Button
+                general
+                onclick={() => {
+                  addRuleToGroup(group_index, defaultRule(), true);
+                  open = true;
+                }}
               >
-              <div class="dd-icon"><Add size={20} /></div>
-              <div class="dd-label">{t("Add Rule")}</div>
-            </Button>
+                <div class="dd-icon"><Add size={20} /></div>
+                <div class="dd-label">{t("Add Rule")}</div>
+              </Button>
             {/snippet}
             {#snippet item2()}
-            <Button general onclick={() => dispatch("importRules")}>
-              <div class="dd-icon"><ImportList size={20} /></div>
-              <div class="dd-label">{t("Import Rule List")}</div>
-            </Button>
+              <Button general onclick={() => dispatch("importRules")}>
+                <div class="dd-icon"><ImportList size={20} /></div>
+                <div class="dd-label">{t("Import Rule List")}</div>
+              </Button>
             {/snippet}
             {#snippet item3()}
+              <Button general disabled={group_index === 0} onclick={() => moveGroupUp(group_index)}>
+                <div class="dd-icon"><MoveUp size={20} /></div>
+                <div class="dd-label">{t("Move Up")}</div>
+              </Button>
+            {/snippet}
+            {#snippet item4()}
+              <Button
+                general
+                disabled={group_index === total_groups - 1}
+                onclick={() => moveGroupDown(group_index)}
+              >
+                <div class="dd-icon"><MoveDown size={20} /></div>
+                <div class="dd-label">{t("Move Down")}</div>
+              </Button>
+            {/snippet}
+            {#snippet item5()}
               <Button general onclick={() => deleteGroup(group_index)}>
                 <div class="dd-icon"><Delete size={20} /></div>
                 <div class="dd-label">{t("Delete Group")}</div>
@@ -266,7 +317,37 @@
             <div class="group-rules-header-column">{t("Name")}</div>
             <div class="group-rules-header-column">{t("Type")}</div>
             <div class="group-rules-header-column">{t("Pattern")}</div>
-            <div class="group-rules-header-column">{t("Enabled")}</div>
+            <div class="group-rules-header-column">
+              {#if displayedRulesCount > 0}
+                <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
+                  <Switch
+                    class="master-switch"
+                    checked={group.rules.every((r) => r.enable)}
+                    mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
+                    onCheckedChange={(v) => {
+                      const allOn = group.rules.every((r) => r.enable);
+                      const mixed = group.rules.some((r) => r.enable) && !allOn;
+                      const newState = mixed ? true : !allOn; // If mixed -> Turn ON. If all ON -> Turn OFF. If all OFF -> Turn ON.
+
+                      group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                    }}
+                  />
+                </div>
+                <Tooltip value={t("Delete All Rules")}>
+                  <Button
+                    small
+                    class="delete-all-rules-btn"
+                    onclick={() => {
+                      if (confirm(t("Delete all rules in this group?"))) {
+                        group.rules = [];
+                      }
+                    }}
+                  >
+                    <Delete size={20} />
+                  </Button>
+                </Tooltip>
+              {/if}
+            </div>
           </div>
         {/if}
         <div class="group-rules">
@@ -313,8 +394,18 @@
       background-color: var(--bg-medium);
       border-radius: 0.5rem;
       border: 1px solid var(--bg-light-extra);
-      transition: transform .12s ease, opacity .12s ease, box-shadow .12s ease;
+      transition:
+        transform 0.12s ease,
+        opacity 0.12s ease,
+        box-shadow 0.12s ease,
+        border-color 0.1s ease;
       position: relative;
+    }
+
+    &.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent);
+      z-index: 1;
     }
   }
 
@@ -338,7 +429,7 @@
   .group-left {
     display: flex;
     align-items: center;
-    gap: .4rem;
+    gap: 0.4rem;
   }
 
   .group-color {
@@ -387,7 +478,7 @@
       border-bottom: 1px solid transparent;
       position: relative;
       top: 0.1rem;
-      margin-left: .4rem;
+      margin-left: 0.4rem;
     }
 
     &:focus-visible {
@@ -497,10 +588,6 @@
       }
     }
 
-    .group-grip {
-      display: none;
-    }
-
     .group-actions {
       width: calc(100% - 2rem);
       justify-content: stretch;
@@ -525,5 +612,35 @@
         display: none;
       }
     }
+  }
+
+  /* Master Switch Styles */
+  :global(.master-switch[data-state="checked"]) {
+    background-color: #22c55e !important; /* Green-500 */
+  }
+
+  :global(.master-switch[data-state="unchecked"]) {
+    background-color: #ef4444 !important; /* Red-500 */
+  }
+
+  :global(.master-switch[data-mixed="true"]) {
+    background-color: #f97316 !important; /* Orange-500 */
+  }
+
+  /* Alignment fix for the last column (Right align to match RuleRow actions) */
+  .group-rules-header-column:last-child {
+    justify-content: end;
+    /* padding-right: 3.5rem; */ /* Removed manual padding, now using content (switch + button) to align */
+    gap: 0.5rem; /* Match gap in RuleRow .actions */
+  }
+
+  /* Delete All Rules Button - Red variant */
+  :global(.delete-all-rules-btn) {
+    color: var(--red) !important;
+  }
+
+  :global(.delete-all-rules-btn:hover) {
+    background-color: color-mix(in oklab, var(--red) 10%, transparent) !important;
+    border: 1px solid var(--red) !important;
   }
 </style>

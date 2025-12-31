@@ -2,15 +2,21 @@ package v1
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 
+	// Added by user instruction
 	"magitrickle/api/utils"
 	"magitrickle/api/v1/types"
 	"magitrickle/app"
+	"magitrickle/diagnostics"
 	"magitrickle/models"
 	"magitrickle/utils/intID"
+	"magitrickle/utils/network"
+	"magitrickle/utils/updater"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )
 
@@ -51,10 +57,8 @@ func (h *Handler) NetfilterDHook(w http.ResponseWriter, r *http.Request) {
 			log.Error().Err(err).Msg("error fixing iptables after netfilter.d")
 		}
 	}
-	for _, group := range h.app.Groups() {
-		if err := group.NetfilterDHook(req.Type, req.Table); err != nil {
-			log.Error().Err(err).Msg("error while fixing iptables in group")
-		}
+	if err := h.app.NetfilterDHook(req.Type, req.Table); err != nil {
+		log.Error().Err(err).Msg("error fixing traffic manager rules after netfilter.d")
 	}
 }
 
@@ -74,9 +78,20 @@ func (h *Handler) ListInterfaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res := make([]types.InterfaceRes, len(interfaces)+1)
-	res[0] = types.InterfaceRes{ID: "blackhole"}
+	res[0] = types.InterfaceRes{ID: "blackhole", Active: true}
 	for i, iface := range interfaces {
-		res[i+1] = types.InterfaceRes{ID: iface.Name}
+		active := iface.Flags&net.FlagUp != 0
+		ip := ""
+		addrs, _ := iface.Addrs()
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+				if ipnet.IP.To4() != nil {
+					ip = ipnet.IP.String()
+					break
+				}
+			}
+		}
+		res[i+1] = types.InterfaceRes{ID: iface.Name, Active: active, IP: ip}
 	}
 	utils.WriteJson(w, http.StatusOK, types.InterfacesRes{Interfaces: res})
 }
@@ -167,7 +182,8 @@ func (h *Handler) PutGroups(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromGroups(newGroups, true))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -203,7 +219,8 @@ func (h *Handler) CreateGroup(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromGroup(group, true))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -278,7 +295,8 @@ func (h *Handler) PutGroup(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromGroup(updatedGroup, true))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -307,7 +325,8 @@ func (h *Handler) DeleteGroup(w http.ResponseWriter, r *http.Request) {
 	h.app.RemoveGroupByIndex(groupIdx)
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -393,7 +412,8 @@ func (h *Handler) PutRules(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromRules(newRules))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -438,7 +458,8 @@ func (h *Handler) CreateRule(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromRule(rule))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -504,7 +525,8 @@ func (h *Handler) PutRule(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJson(w, http.StatusOK, RespFromRule(rule))
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
 }
@@ -537,7 +559,251 @@ func (h *Handler) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.URL.Query().Get("save") == "true" {
 		if err := h.app.SaveConfig(); err != nil {
-			log.Error().Err(err).Msg("failed to save config file")
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config file: %v", err))
+			return
 		}
 	}
+}
+
+// ListInterfaceAliases
+//
+//	@Summary		Получить список алиасов интерфейсов
+//	@Description	Возвращает список алиасов интерфейсов
+//	@Tags			config
+//	@Produce		json
+//	@Success		200		{object}	map[string]string
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/interfaces/aliases [get]
+func (h *Handler) ListInterfaceAliases(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJson(w, http.StatusOK, h.app.InterfaceAliases())
+}
+
+// SaveInterfaceAliases
+//
+//	@Summary		Сохранить алиасы интерфейсов
+//	@Description	Сохраняет алиасы интерфейсов
+//	@Tags			config
+//	@Accept			json
+//	@Produce		json
+//	@Param			save	query		bool				false	"Сохранить изменения в конфигурационный файл"
+//	@Param			json	body		map[string]string	true	"Тело запроса"
+//	@Success		200
+//	@Failure		400		{object}	types.ErrorRes
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/interfaces/aliases [post]
+func (h *Handler) SaveInterfaceAliases(w http.ResponseWriter, r *http.Request) {
+	req, err := utils.ReadJson[map[string]string](r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	h.app.SetInterfaceAliases(req)
+
+	if r.URL.Query().Get("save") == "true" {
+		if err := h.app.SaveInterfaceConfig(); err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save config: %v", err))
+			return
+		}
+	}
+	utils.WriteJson(w, http.StatusOK, nil)
+}
+
+// ListSettings
+//
+//	@Summary		Получить системные настройки
+//	@Description	Возвращает системные настройки
+//	@Tags			config
+//	@Produce		json
+//	@Success		200		{object}	models.SettingsConfig
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/settings [get]
+//
+//	func (h *Handler) ListSettings(w http.ResponseWriter, r *http.Request) {
+//		utils.WriteJson(w, http.StatusOK, h.app.Settings())
+//	}
+func (h *Handler) ListSettings(w http.ResponseWriter, r *http.Request) {
+	utils.WriteJson(w, http.StatusOK, h.app.Settings())
+}
+
+// SaveSettings
+//
+//	@Summary		Сохранить системные настройки
+//	@Description	Сохраняет системные настройки
+//	@Tags			config
+//	@Accept			json
+//	@Produce		json
+//	@Param			save	query		bool					false	"Сохранить изменения в файл"
+//	@Param			json	body		models.SettingsConfig	true	"Тело запроса"
+//	@Success		200
+//	@Failure		400		{object}	types.ErrorRes
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/settings [post]
+//
+//	func (h *Handler) SaveSettings(w http.ResponseWriter, r *http.Request) {
+//		req, err := utils.ReadJson[models.SettingsConfig](r)
+//		if err != nil {
+//			utils.WriteError(w, http.StatusBadRequest, err.Error())
+//			return
+//		}
+//		h.app.SetSettings(req)
+//
+//		if r.URL.Query().Get("save") == "true" {
+//			if err := h.app.SaveSettingsConfig(); err != nil {
+//				utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save settings: %v", err))
+//				return
+//			}
+//		}
+//		utils.WriteJson(w, http.StatusOK, nil)
+//	}
+func (h *Handler) SaveSettings(w http.ResponseWriter, r *http.Request) {
+	req, err := utils.ReadJson[models.SettingsConfig](r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	h.app.SetSettings(req)
+
+	if r.URL.Query().Get("save") == "true" {
+		if err := h.app.SaveSettingsConfig(); err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to save settings: %v", err))
+			return
+		}
+	}
+	utils.WriteJson(w, http.StatusOK, nil)
+}
+
+// RestartService
+//
+//	@Summary		Перезагрузить сервис
+//	@Description	Перезагружает сервис
+//	@Tags			system
+//	@Produce		json
+//	@Success		200
+//	@Router			/api/v1/system/restart [post]
+func (h *Handler) RestartService(w http.ResponseWriter, r *http.Request) {
+	h.app.Restart()
+	utils.WriteJson(w, http.StatusOK, map[string]string{"status": "restarting"})
+}
+
+// StreamLogs
+//
+//	@Summary		Стрим логов (SSE)
+//	@Description	Стримит логи приложения в реальном времени
+//	@Tags			system
+//	@Produce		text/event-stream
+//	@Success		200
+//	@Router			/api/v1/system/logs/stream [get]
+func (h *Handler) StreamLogs(w http.ResponseWriter, r *http.Request) {
+	// SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	broadcaster := h.app.LogBroadcaster()
+	if broadcaster == nil {
+		http.Error(w, "Logs broadcaster not available", http.StatusInternalServerError)
+		return
+	}
+
+	// msgChan := make(chan []byte, 100)
+	msgChan := broadcaster.Subscribe()
+	defer broadcaster.Unsubscribe(msgChan)
+
+	clientDisconnected := r.Context().Done()
+
+	for {
+		select {
+		case msg := <-msgChan:
+			// SSE format: "data: <payload>\n\n"
+			// We assume msg is a JSON line from zerolog
+			fmt.Fprintf(w, "data: %s\n\n", msg)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+		case <-clientDisconnected:
+			return
+		}
+	}
+}
+
+// GetExternalIP
+//
+//	@Summary		Получить внешний IP для интерфейса
+//	@Description	Проверяет внешний IP для конкретного интерфейса
+//	@Tags			config
+//	@Produce		json
+//	@Param			iface	path		string	true	"Имя интерфейса"
+//	@Success		200		{object}	map[string]string
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/interfaces/{iface}/external-ip [get]
+func (h *Handler) GetExternalIP(w http.ResponseWriter, r *http.Request) {
+	ifaceName := chi.URLParam(r, "iface")
+	if ifaceName == "" {
+		utils.WriteError(w, http.StatusBadRequest, "interface name is required")
+		return
+	}
+
+	ip, err := network.CheckExternalIP(ifaceName)
+	if err != nil {
+		// Return 200 OK with empty IP to avoid browser console errors (500)
+		// The frontend simply hides the IP if it's empty.
+		utils.WriteJson(w, http.StatusOK, map[string]string{
+			"ip":    "",
+			"error": err.Error(),
+		})
+		return
+	}
+
+	utils.WriteJson(w, http.StatusOK, map[string]string{"ip": ip})
+}
+
+// RunSpeedtest
+//
+//	@Summary		Запустить тест скорости (Stream)
+//	@Description	Запускает Speedtest на указанном интерфейсе и стримит результаты (SSE)
+//	@Tags			diagnostics
+//	@Produce		text/event-stream
+//	@Param			interface	query		string	false	"Имя интерфейса"
+//	@Success		200
+//	@Success		200
+//	@Router			/api/v1/diagnostics/speedtest [get]
+func (h *Handler) RunSpeedtest(w http.ResponseWriter, r *http.Request) {
+	ifaceName := r.URL.Query().Get("interface")
+	diagnostics.RunSpeedtestStream(w, ifaceName)
+}
+
+// CheckUpdate
+//
+//	@Summary		Проверить наличие обновлений
+//	@Description	Запускает проверку обновлений через opkg
+//	@Tags			system
+//	@Produce		json
+//	@Success		200		{object}	map[string]string
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/update/check [get]
+func (h *Handler) CheckUpdate(w http.ResponseWriter, r *http.Request) {
+	newVer, err := updater.CheckForUpdates()
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to check for updates: %v", err))
+		return
+	}
+	utils.WriteJson(w, http.StatusOK, map[string]string{"available_version": newVer})
+}
+
+// RunUpdate
+//
+//	@Summary		Запустить обновление
+//	@Description	Запускает процесс обновления (сервис будет перезагружен)
+//	@Tags			system
+//	@Produce		json
+//	@Success		200
+//	@Failure		500		{object}	types.ErrorRes
+//	@Router			/api/v1/system/update/run [post]
+func (h *Handler) RunUpdate(w http.ResponseWriter, r *http.Request) {
+	if err := updater.RunUpdate(); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to start update: %v", err))
+		return
+	}
+	utils.WriteJson(w, http.StatusOK, nil)
 }

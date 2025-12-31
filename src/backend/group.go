@@ -1,7 +1,6 @@
 package magitrickle
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -13,7 +12,6 @@ import (
 	"magitrickle/models"
 	"magitrickle/utils/netfilterTools"
 
-	"github.com/rs/zerolog/log"
 	"github.com/vishvananda/netlink"
 )
 
@@ -27,9 +25,7 @@ type Group struct {
 	enabled atomic.Bool
 	locker  sync.Mutex
 
-	app         *App
-	ipset       *netfilterTools.IPSet
-	ipsetToLink *netfilterTools.IPSetToLink
+	app *App
 }
 
 func (g *Group) Enabled() bool {
@@ -47,204 +43,85 @@ func (g *Group) Model() *models.Group {
 	return g.Group
 }
 
-func (g *Group) addIPv4Subnet(subnet netfilterTools.IPv4Subnet, ttl netfilterTools.IPSetTimeout) error {
-	return g.ipset.AddIPv4Subnet(subnet, ttl)
-}
-
-func (g *Group) AddIPv4Subnet(subnet netfilterTools.IPv4Subnet, ttl netfilterTools.IPSetTimeout) error {
+// Enable activates the group
+func (g *Group) Enable() error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil
-	}
 
 	if !g.Group.Enable {
 		return nil
 	}
 
-	return g.addIPv4Subnet(subnet, ttl)
-}
-
-func (g *Group) addIPv6Subnet(subnet netfilterTools.IPv6Subnet, ttl netfilterTools.IPSetTimeout) error {
-	return g.ipset.AddIPv6Subnet(subnet, ttl)
-}
-
-func (g *Group) AddIPv6Subnet(subnet netfilterTools.IPv6Subnet, ttl netfilterTools.IPSetTimeout) error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.addIPv6Subnet(subnet, ttl)
-}
-
-func (g *Group) delIPv4Subnet(subnet netfilterTools.IPv4Subnet) error {
-	return g.ipset.DelIPv4Subnet(subnet)
-}
-
-func (g *Group) DelIPv4Subnet(subnet netfilterTools.IPv4Subnet) error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.delIPv4Subnet(subnet)
-}
-
-func (g *Group) delIPv6Subnet(subnet netfilterTools.IPv6Subnet) error {
-	return g.ipset.DelIPv6Subnet(subnet)
-}
-
-func (g *Group) DelIPv6Subnet(subnet netfilterTools.IPv6Subnet) error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.delIPv6Subnet(subnet)
-}
-
-func (g *Group) listIPv4Subnets() (map[netfilterTools.IPv4Subnet]netfilterTools.IPSetTimeout, error) {
-	return g.ipset.ListIPv4Subnets()
-}
-
-func (g *Group) ListIPv4Subnets() (map[netfilterTools.IPv4Subnet]netfilterTools.IPSetTimeout, error) {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil, nil
-	}
-
-	if !g.Group.Enable {
-		return nil, nil
-	}
-
-	return g.listIPv4Subnets()
-}
-
-func (g *Group) listIPv6Subnets() (map[netfilterTools.IPv6Subnet]netfilterTools.IPSetTimeout, error) {
-	return g.ipset.ListIPv6Subnets()
-}
-
-func (g *Group) ListIPv6Subnets() (map[netfilterTools.IPv6Subnet]netfilterTools.IPSetTimeout, error) {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if !g.Enabled() {
-		return nil, nil
-	}
-
-	if !g.Group.Enable {
-		return nil, nil
-	}
-
-	return g.listIPv6Subnets()
-}
-
-func (g *Group) enable() error {
 	if !g.enabled.CompareAndSwap(false, true) {
 		return nil
 	}
 
-	if !g.Group.Enable {
-		return nil
-	}
-
-	ipset := g.app.nfHelper.IPSet(g.ID.String())
-	ipsetToLink := g.app.nfHelper.IPSetToLink(g.ID.String(), g.Interface, ipset)
-	if err := ipsetToLink.ClearIfDisabled(); err != nil {
-		return fmt.Errorf("failed to clear iptables: %w", err)
-	}
-
-	if err := ipset.Enable(); err != nil {
-		return fmt.Errorf("failed to initialize ipset: %w", err)
-	}
-	g.ipset = ipset
-
-	if err := ipsetToLink.Enable(); err != nil {
-		return fmt.Errorf("failed to link ipset to interface: %w", err)
-	}
-	g.ipsetToLink = ipsetToLink
-
-	return nil
-}
-
-func (g *Group) Enable() error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-	if err := g.enable(); err != nil {
-		_ = g.disable()
+	// Calculate and push rules to TrafficManager
+	if err := g.sync(); err != nil {
+		g.enabled.Store(false)
 		return err
 	}
+
+	// Update Trie to include this group's domains
+	g.app.RebuildTrie()
+
 	return nil
 }
 
-func (g *Group) disable() error {
-	if !g.Enabled() {
-		return nil
-	}
-	defer g.enabled.Store(false)
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	var errs []error
-	errs = append(errs, func() error {
-		if g.ipsetToLink == nil {
-			return nil
-		}
-		if err := g.ipsetToLink.Disable(); err != nil {
-			return fmt.Errorf("failed to unlink ipset from interface: %w", err)
-		}
-		g.ipsetToLink = nil
-		return nil
-	}())
-	errs = append(errs, func() error {
-		if g.ipset == nil {
-			return nil
-		}
-		if err := g.ipset.Disable(); err != nil {
-			return fmt.Errorf("failed to destroy ipset: %w", err)
-		}
-		g.ipset = nil
-		return nil
-	}())
-	return errors.Join(errs...)
-}
-
+// Disable deactivates the group
 func (g *Group) Disable() error {
 	g.locker.Lock()
 	defer g.locker.Unlock()
-	return g.disable()
+
+	if !g.enabled.CompareAndSwap(true, false) {
+		return nil
+	}
+
+	// Remove rules from TrafficManager
+	if err := g.app.trafficManager.RemoveGroupRules(g.ID, g.Interface); err != nil {
+		return fmt.Errorf("failed to remove group rules: %w", err)
+	}
+
+	// Update Trie to remove this group's domains
+	g.app.RebuildTrie()
+
+	return nil
+}
+
+// Sync updates the group configuration (called when Config changes)
+func (g *Group) Sync() error {
+	g.locker.Lock()
+	defer g.locker.Unlock()
+
+	if !g.Enabled() {
+		return nil
+	}
+
+	// If group is conceptually disabled in config
+	if !g.Group.Enable {
+		return g.app.trafficManager.RemoveGroupRules(g.ID, g.Interface)
+	}
+
+	if err := g.sync(); err != nil {
+		return err
+	}
+
+	g.app.RebuildTrie()
+	return nil
 }
 
 func (g *Group) sync() error {
-	now := time.Now()
-	newIPv4SubnetList := make(map[netfilterTools.IPv4Subnet]netfilterTools.IPSetTimeout)
-	newIPv6SubnetList := make(map[netfilterTools.IPv6Subnet]netfilterTools.IPSetTimeout)
-	knownDomains := g.app.recordsCache.ListKnownDomains()
+	var v4Subnets []netfilterTools.IPv4Subnet
+	var v6Subnets []netfilterTools.IPv6Subnet
+
 RuleLoop:
 	for _, domain := range g.Rules {
 		if !domain.IsEnabled() {
 			continue
 		}
-		switch domain.Type {
-		case "subnet":
+
+		// Parse Subnet Rules directly
+		if domain.Type == "subnet" {
 			matches := ipv4SubnetRe.FindStringSubmatch(domain.Rule)
 			if matches == nil {
 				continue
@@ -256,7 +133,6 @@ RuleLoop:
 				if n > 255 {
 					continue RuleLoop
 				}
-
 				addr[i-1] = uint8(n)
 			}
 
@@ -266,168 +142,66 @@ RuleLoop:
 				if n > 32 {
 					continue RuleLoop
 				}
-
 				cidr = uint8(n)
+				// Apply mask
 				addr = [4]byte(net.IP(addr[:]).Mask(net.CIDRMask(n, 32)))
+			} else {
+				// No CIDR means /32 (single IP)
+				cidr = 32
 			}
 
 			if !(addr == [4]byte{0, 0, 0, 0} && cidr == 0) {
-				newIPv4SubnetList[netfilterTools.IPv4Subnet{Address: addr, CIDR: cidr}] = nil
+				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: addr, CIDR: cidr})
 			} else {
-				newIPv4SubnetList[netfilterTools.IPv4Subnet{Address: [4]byte{0, 0, 0, 0}, CIDR: 1}] = nil
-				newIPv4SubnetList[netfilterTools.IPv4Subnet{Address: [4]byte{128, 0, 0, 0}, CIDR: 1}] = nil
+				// 0.0.0.0/1 and 128.0.0.0/1 hack for 0.0.0.0/0
+				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: [4]byte{0, 0, 0, 0}, CIDR: 1})
+				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: [4]byte{128, 0, 0, 0}, CIDR: 1})
 			}
-
-		default:
-			for _, domainName := range knownDomains {
-				if !domain.IsMatch(domainName) {
-					continue
-				}
-				domainAddresses := g.app.recordsCache.GetAddresses(domainName)
-				for _, address := range domainAddresses {
-					ttlDuration := address.Deadline.Sub(now).Seconds()
-					if ttlDuration <= 0 {
-						continue
-					}
-					ttl := uint32(ttlDuration)
-					if len(address.Address) == net.IPv4len {
-						subnet := netfilterTools.IPv4Subnet{Address: [4]byte(address.Address)}
-						if oldTTL, exists := newIPv4SubnetList[subnet]; !exists || (oldTTL != nil && ttl > *oldTTL) {
-							newIPv4SubnetList[subnet] = &ttl
-						}
-					} else if len(address.Address) == net.IPv6len {
-						subnet := netfilterTools.IPv6Subnet{Address: [16]byte(address.Address)}
-						if oldTTL, exists := newIPv6SubnetList[subnet]; !exists || (oldTTL != nil && ttl > *oldTTL) {
-							newIPv6SubnetList[subnet] = &ttl
-						}
-					}
-				}
-			}
-		}
-	}
-
-	oldIPv4SubnetList, err := g.listIPv4Subnets()
-	if err != nil {
-		return fmt.Errorf("failed to get old ipset list: %w", err)
-	}
-	for subnet, newTTL := range newIPv4SubnetList {
-		if oldTTL, ok := oldIPv4SubnetList[subnet]; ok {
-			if oldTTL == nil || (newTTL != nil && *newTTL < *oldTTL) {
-				continue
-			}
-		}
-
-		if err := g.addIPv4Subnet(subnet, newTTL); err != nil {
-			log.Error().
-				Err(err).
-				Str("subnet", subnet.String()).
-				Msg("failed to add subnet")
-		} else {
-			log.Debug().
-				Str("subnet", subnet.String()).
-				Msg("added subnet")
-		}
-	}
-	for subnet := range oldIPv4SubnetList {
-		if _, ok := newIPv4SubnetList[subnet]; ok {
 			continue
 		}
 
-		if err := g.delIPv4Subnet(subnet); err != nil {
-			log.Error().
-				Err(err).
-				Str("subnet", subnet.String()).
-				Msg("failed to delete subnet")
-		} else {
-			log.Debug().
-				Str("subnet", subnet.String()).
-				Msg("deleted subnet")
-		}
-	}
+		// Process "Domain" rules using cache to speed up "hot" enable
+		if domain.Type == "domain" {
+			knownDomains := g.app.recordsCache.ListKnownDomains()
+			for _, known := range knownDomains {
+				if domain.IsMatch(known) {
+					addresses := g.app.recordsCache.GetAddresses(known)
+					for _, addr := range addresses {
+						ttl := time.Until(addr.Deadline).Seconds()
+						if ttl <= 0 {
+							continue
+						}
 
-	oldIPv6SubnetList, err := g.listIPv6Subnets()
-	if err != nil {
-		return fmt.Errorf("failed to get old ipset list: %w", err)
-	}
-	for subnet, newTTL := range newIPv6SubnetList {
-		if oldTTL, ok := oldIPv6SubnetList[subnet]; ok {
-			if oldTTL == nil || (newTTL != nil && *newTTL < *oldTTL) {
-				continue
+						if len(addr.Address) == net.IPv4len {
+							subnet := netfilterTools.IPv4Subnet{Address: [4]byte(addr.Address), CIDR: 32}
+							if err := g.app.trafficManager.AddDynamicIPv4(g.ID, g.Interface, subnet, uint32(ttl)); err != nil {
+								// Log error but continue
+							}
+						} else if len(addr.Address) == net.IPv6len {
+							subnet := netfilterTools.IPv6Subnet{Address: [16]byte(addr.Address), CIDR: 128}
+							if err := g.app.trafficManager.AddDynamicIPv6(g.ID, g.Interface, subnet, uint32(ttl)); err != nil {
+								// Log error
+							}
+						}
+					}
+				}
 			}
-		}
-
-		if err := g.addIPv6Subnet(subnet, newTTL); err != nil {
-			log.Error().
-				Err(err).
-				Str("subnet", subnet.String()).
-				Msg("failed to add subnet")
-		} else {
-			log.Debug().
-				Str("subnet", subnet.String()).
-				Msg("added subnet")
-		}
-	}
-	for subnet := range oldIPv6SubnetList {
-		if _, ok := newIPv6SubnetList[subnet]; ok {
 			continue
 		}
-
-		if err := g.delIPv6Subnet(subnet); err != nil {
-			log.Error().
-				Err(err).
-				Str("subnet", subnet.String()).
-				Msg("failed to delete subnet")
-		} else {
-			log.Debug().
-				Str("subnet", subnet.String()).
-				Msg("deleted subnet")
-		}
 	}
 
+	return g.app.trafficManager.UpdateGroupRules(g.ID, g.Interface, v4Subnets, v6Subnets)
+}
+
+// Legacy hooks that might be called (though we aim to remove them from caller too)
+func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
+	// TrafficManager handles interfaces, but it might need to know about Link Updates?
+	// Helper/IPSetToLink usually handles this if we used the generic link hook.
+	// But `TrafficManager` owns the `IPSetToLink` now.
+	// So `netlink.go` should notify `TrafficManager`, not `Group`.
 	return nil
 }
 
-func (g *Group) Sync() error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.sync()
-}
-
 func (g *Group) NetfilterDHook(iptType, table string) error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.ipsetToLink.NetfilterDHook(iptType, table)
-}
-
-func (g *Group) LinkUpdateHook(event netlink.LinkUpdate) error {
-	g.locker.Lock()
-	defer g.locker.Unlock()
-
-	if !g.Enabled() {
-		return nil
-	}
-
-	if !g.Group.Enable {
-		return nil
-	}
-
-	return g.ipsetToLink.LinkUpdateHook(event)
+	return nil
 }

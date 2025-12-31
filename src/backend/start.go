@@ -83,6 +83,18 @@ func (a *App) Start(ctx context.Context) (err error) {
 		}()
 	}
 
+	// Force init interfaces referenced by groups to ensure clean state
+	// This clears any zombie rules from previous runs even if group is disabled now
+	initializedInterfaces := make(map[string]bool)
+	for _, group := range a.groups {
+		if !initializedInterfaces[group.Interface] {
+			if _, err := a.trafficManager.GetInterfaceManager(group.Interface); err != nil {
+				return fmt.Errorf("failed to init interface manager for %s: %w", group.Interface, err)
+			}
+			initializedInterfaces[group.Interface] = true
+		}
+	}
+
 	for _, group := range a.groups {
 		if err := group.Enable(); err != nil {
 			return fmt.Errorf("failed to enable group: %w", err)

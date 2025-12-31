@@ -1,6 +1,6 @@
 -include .config
 
-PKG_NAME := magitrickle
+PKG_NAME := magitrickle_mod
 PKG_DESCRIPTION := DNS-based routing application
 PKG_MAINTAINER := Vladimir Avtsenov <vladimir.lsk.cool@gmail.com>
 PKG_RELEASE ?= 1
@@ -111,7 +111,7 @@ package_ipk:
 	echo 'Section: net' >> $(BUILD_DIR)/control/control
 	echo 'Priority: optional' >> $(BUILD_DIR)/control/control
 ifeq ($(PLATFORM),entware)
-	@DEPS="libc, iptables"; \
+	@DEPS="libc, iptables, ipset"; \
 	if echo "$(TARGET)" | grep -q '_kn$$'; then \
 		DEPS="$$DEPS, socat"; \
 	fi; \
@@ -137,3 +137,4 @@ endif
 	tar -C "$(BUILD_DIR)/control" -czvf "$(BUILD_DIR)/control.tar.gz" --owner=0 --group=0 .
 	tar -C "$(BUILD_DIR)/data" -czvf "$(BUILD_DIR)/data.tar.gz" --owner=0 --group=0 .
 	tar -C "$(BUILD_DIR)" -czvf "$(BUILDS_DIR)/$(PKG_NAME)_$(PKG_VERSION)-$(PKG_RELEASE)_$(PLATFORM)_$(TARGET).ipk" --owner=0 --group=0 ./debian-binary ./control.tar.gz ./data.tar.gz
+

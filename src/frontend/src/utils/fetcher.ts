@@ -29,12 +29,12 @@ fetcher.get = <T>(url: string) =>
     signal: AbortSignal.timeout(TIMEOUT),
   });
 
-fetcher.post = <T>(url: string, body: any) =>
+fetcher.post = <T>(url: string, body: any, options?: { timeout?: number }) =>
   fetcher<T>(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT),
+    signal: AbortSignal.timeout(options?.timeout ?? TIMEOUT),
   });
 
 fetcher.put = <T>(url: string, body: any) =>

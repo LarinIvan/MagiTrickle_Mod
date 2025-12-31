@@ -31,17 +31,7 @@ func (a *App) handleLink(event netlink.LinkUpdate) {
 				Int("type", int(event.Header.Type)).
 				Msg("interface add")
 		}
-		for _, group := range a.groups {
-			if group.Interface != ifaceName {
-				continue
-			}
-			if err := group.LinkUpdateHook(event); err != nil {
-				log.Error().
-					Err(err).
-					Str("group", group.ID.String()).
-					Msg("error while handling interface up")
-			}
-		}
+		a.trafficManager.HandleLinkUpdate(event)
 	case unix.RTM_DELLINK:
 		log.Debug().
 			Str("interface", event.Link.Attrs().Name).

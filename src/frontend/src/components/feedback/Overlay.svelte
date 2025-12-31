@@ -24,8 +24,8 @@
 
   function onHide() {
     hide = true;
-    document.documentElement.style.scrollbarGutter = "stable both-edges";
-    document.documentElement.style.overflow = "auto";
+    document.documentElement.style.scrollbarGutter = "";
+    document.documentElement.style.overflow = "";
   }
 
   function preventDefaultScroll(event: WheelEvent | TouchEvent) {

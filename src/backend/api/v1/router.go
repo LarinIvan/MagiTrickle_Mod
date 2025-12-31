@@ -73,13 +73,33 @@ func NewRouter(a app.Main) chi.Router {
 		})
 	})
 	r.Route("/system", func(r chi.Router) {
-		r.Get("/interfaces", h.ListInterfaces)
+		r.Route("/interfaces", func(r chi.Router) {
+			r.Get("/", h.ListInterfaces)
+			r.Get("/aliases", h.ListInterfaceAliases)
+			r.Post("/aliases", h.SaveInterfaceAliases)
+			r.Get("/{iface}/external-ip", h.GetExternalIP)
+		})
 		r.Route("/config", func(r chi.Router) {
 			r.Post("/save", h.SaveConfig)
 		})
 		r.Route("/hooks", func(r chi.Router) {
 			r.Post("/netfilterd", h.NetfilterDHook)
 		})
+		r.Route("/settings", func(r chi.Router) {
+			r.Get("/", h.ListSettings)
+			r.Post("/", h.SaveSettings)
+		})
+		r.Route("/logs", func(r chi.Router) {
+			r.Get("/stream", h.StreamLogs)
+		})
+		r.Post("/restart", h.RestartService)
+		r.Route("/update", func(r chi.Router) {
+			r.Get("/check", h.CheckUpdate)
+			r.Post("/run", h.RunUpdate)
+		})
+	})
+	r.Route("/diagnostics", func(r chi.Router) {
+		r.Get("/speedtest", h.RunSpeedtest)
 	})
 	return r
 }

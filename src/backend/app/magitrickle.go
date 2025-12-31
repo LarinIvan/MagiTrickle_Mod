@@ -5,10 +5,9 @@ import (
 	"net"
 
 	"magitrickle/config"
+	"magitrickle/logstream"
 	"magitrickle/models"
 	"magitrickle/utils/netfilterTools"
-
-	"github.com/vishvananda/netlink"
 )
 
 type Main interface {
@@ -24,20 +23,23 @@ type Main interface {
 	ImportConfig(cfg config.Config) error
 	ExportConfig() config.Config
 	Start(ctx context.Context) (err error)
+	NetfilterDHook(action, table string) error
+	InterfaceAliases() map[string]string
+	SetInterfaceAliases(aliases map[string]string)
+	LoadInterfaceConfig() error
+	SaveInterfaceConfig() error
+	Settings() models.SettingsConfig
+	SetSettings(s models.SettingsConfig)
+	LoadSettingsConfig() error
+	SaveSettingsConfig() error
+	Restart()
+	LogBroadcaster() *logstream.Broadcaster
 }
 
 type Group interface {
 	Enabled() bool
 	Model() *models.Group
-	AddIPv4Subnet(subnet netfilterTools.IPv4Subnet, ttl netfilterTools.IPSetTimeout) error
-	AddIPv6Subnet(subnet netfilterTools.IPv6Subnet, ttl netfilterTools.IPSetTimeout) error
-	DelIPv4Subnet(subnet netfilterTools.IPv4Subnet) error
-	DelIPv6Subnet(subnet netfilterTools.IPv6Subnet) error
-	ListIPv4Subnets() (map[netfilterTools.IPv4Subnet]netfilterTools.IPSetTimeout, error)
-	ListIPv6Subnets() (map[netfilterTools.IPv6Subnet]netfilterTools.IPSetTimeout, error)
 	Enable() error
 	Disable() error
 	Sync() error
-	NetfilterDHook(iptType string, table string) error
-	LinkUpdateHook(event netlink.LinkUpdate) error
 }

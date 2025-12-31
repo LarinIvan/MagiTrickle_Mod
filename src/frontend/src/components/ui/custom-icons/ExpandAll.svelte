@@ -1,0 +1,15 @@
+<script>
+  export let size = "24";
+  export let color = "currentColor";
+</script>
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  height={size}
+  viewBox="0 -960 960 960"
+  width={size}
+  fill={color}
+  {...$$restProps}
+>
+  <path d="M480-80 240-320l57-57 183 183 183-183 57 57L480-80ZM298-584l-58-56 240-240 240 240-58 56-182-182-182 182Z"/>
+</svg>
