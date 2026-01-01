@@ -182,6 +182,18 @@ func (a *App) processARecord(aRecord dns.A, id uint16, clientAddr net.Addr, netw
 		// Use Trie for O(1) lookup
 		data, found := a.Trie().Search(name)
 
+		// Fallback to Wildcard if not found
+		if !found && a.wildcardEnabled.Load() {
+			log.Debug().Str("name", name).Msg("Checking Wildcard for domain")
+			if group, ok := a.SearchWildcard(name); ok {
+				log.Debug().Str("name", name).Str("group", group.Name).Msg("Wildcard match success")
+				data = group
+				found = true
+			} else {
+				log.Debug().Str("name", name).Msg("Wildcard match failed")
+			}
+		}
+
 		// Fallback to Regexp if not found
 		if !found && a.regexpEnabled.Load() {
 			log.Debug().Str("name", name).Msg("Checking Regexp for domain")
@@ -273,6 +285,16 @@ func (a *App) processAAAARecord(aaaaRecord dns.AAAA, id uint16, clientAddr net.A
 	names := a.recordsCache.GetAliases(aaaaRecord.Hdr.Name[:len(aaaaRecord.Hdr.Name)-1])
 	for _, name := range names {
 		data, found := a.Trie().Search(name)
+		if !found && a.wildcardEnabled.Load() {
+			log.Debug().Str("name", name).Msg("Checking Wildcard for AAAA")
+			if group, ok := a.SearchWildcard(name); ok {
+				log.Debug().Str("name", name).Str("group", group.Name).Msg("Wildcard match success (AAAA)")
+				data = group
+				found = true
+			} else {
+				log.Debug().Str("name", name).Msg("Wildcard match failed (AAAA)")
+			}
+		}
 		if !found && a.regexpEnabled.Load() {
 			log.Debug().Str("name", name).Msg("Checking Regexp for AAAA")
 			if group, ok := a.SearchRegexp(name); ok {
@@ -343,6 +365,16 @@ func (a *App) processCNameRecord(cNameRecord dns.CNAME, id uint16, clientAddr ne
 	aliases := a.recordsCache.GetAliases(cNameRecord.Hdr.Name[:len(cNameRecord.Hdr.Name)-1])
 	for _, alias := range aliases {
 		data, found := a.Trie().Search(alias)
+		if !found && a.wildcardEnabled.Load() {
+			log.Debug().Str("name", alias).Msg("Checking Wildcard for CNAME")
+			if group, ok := a.SearchWildcard(alias); ok {
+				log.Debug().Str("name", alias).Str("group", group.Name).Msg("Wildcard match success (CNAME)")
+				data = group
+				found = true
+			} else {
+				log.Debug().Str("name", alias).Msg("Wildcard match failed (CNAME)")
+			}
+		}
 		if !found && a.regexpEnabled.Load() {
 			log.Debug().Str("name", alias).Msg("Checking Regexp for CNAME")
 			if group, ok := a.SearchRegexp(alias); ok {

@@ -5,6 +5,7 @@ class SettingsStore {
     /** @type {import("../types").SettingsConfig} */
     config = $state({
         enable_regexp: false,
+        enable_wildcard: true,
         log_level: "info",
         show_interface_ips: true,
         auto_check_updates: false

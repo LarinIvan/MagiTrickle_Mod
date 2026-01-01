@@ -30,5 +30,8 @@
     "You have the latest version": "You have the latest version",
     "Failed to check for updates": "Failed to check for updates",
     "Update started. The service will restart shortly...": "Update started. The service will restart shortly...",
-    "Failed to start update": "Failed to start update"
+    "Failed to start update": "Failed to start update",
+    "settings.advanced_engines": "Advanced Matching Engines",
+    "settings.enable_wildcard": "Use Wildcard",
+    "settings.enable_wildcard_desc": "Support patterns with * and ? characters"
 }

@@ -54,6 +54,11 @@
     settings.save({ ...settings.config, enable_regexp: checked });
   }
 
+  function handleWildcardChange(checked: boolean) {
+    console.log("Wildcard toggle changed:", checked);
+    settings.save({ ...settings.config, enable_wildcard: checked });
+  }
+
   function handleShowIPsChange(checked: boolean) {
     settings.save({ ...settings.config, show_interface_ips: checked });
   }
@@ -72,20 +77,42 @@
   </div>
 
   <div class="settings-grid">
-    <!-- Regexp Toggle -->
-    <div class="setting-card">
-      <div class="setting-icon">
+    <!-- Advanced Matching Engines -->
+    <div class="setting-card grouped">
+      <div class="setting-icon text-yellow-400">
         <Regex size={24} />
       </div>
-      <div class="setting-info">
-        <h3>{t("Use Regexp")}</h3>
-        <p>{t("Use Regexp Description")}</p>
-      </div>
-      <div class="setting-control switch-control">
-        <Switch
-          checked={settings.config?.enable_regexp ?? false}
-          onCheckedChange={handleRegexpChange}
-        />
+
+      <div class="setting-group-content">
+        <!-- Wildcard Toggle -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <h3>{t("settings.enable_wildcard")}</h3>
+            <p>{t("settings.enable_wildcard_desc")}</p>
+          </div>
+          <div class="setting-control switch-control">
+            <Switch
+              checked={settings.config?.enable_wildcard ?? true}
+              onCheckedChange={handleWildcardChange}
+            />
+          </div>
+        </div>
+
+        <div class="setting-separator"></div>
+
+        <!-- Regexp Toggle -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <h3>{t("Use Regexp")}</h3>
+            <p>{t("Use Regexp Description")}</p>
+          </div>
+          <div class="setting-control switch-control">
+            <Switch
+              checked={settings.config?.enable_regexp ?? false}
+              onCheckedChange={handleRegexpChange}
+            />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -406,6 +433,9 @@
   }
   .text-green-400 {
     color: #4ade80;
+  }
+  .text-yellow-400 {
+    color: #facc15;
   }
   .font-bold {
     font-weight: 700;

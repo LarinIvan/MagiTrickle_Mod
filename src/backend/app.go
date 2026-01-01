@@ -23,6 +23,7 @@ import (
 	"magitrickle/utils/recordsCache"
 	"magitrickle/utils/trie"
 
+	"github.com/IGLOU-EU/go-wildcard/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -54,7 +55,11 @@ type App struct {
 	regexpEnabled     atomic.Bool
 	regexpRules       []*RegexpRule
 	regexpRulesLocker sync.RWMutex
-	broadcaster       *logstream.Broadcaster
+
+	wildcardEnabled     atomic.Bool
+	wildcardRules       []*WildcardRule
+	wildcardRulesLocker sync.RWMutex
+	broadcaster         *logstream.Broadcaster
 }
 
 // New создаёт новый экземпляр App
@@ -110,11 +115,16 @@ func (a *App) SetSettings(s models.SettingsConfig) {
 		}
 	}
 
+	// Update Wildcard enablement
+	a.wildcardEnabled.Store(s.EnableWildcard)
+
 	// If enabled, rebuild list
-	if s.EnableRegexp {
-		a.SyncRegexpOnly()
+	if s.EnableRegexp || s.EnableWildcard {
+		a.RebuildTrie()
 	} else {
-		a.DisableRegexp()
+		// Optimization: if both disabled, we might want to clear them?
+		// But RebuildTrie (SyncAllRules) handles it by checking flags.
+		a.RebuildTrie()
 	}
 }
 
@@ -273,6 +283,7 @@ func (a *App) NetfilterDHook(action, table string) error {
 func (a *App) SyncAllRules() {
 	newTrie := trie.New()
 	var newRegexps []*RegexpRule
+	var newWildcards []*WildcardRule
 
 	useRegexp := a.regexpEnabled.Load()
 
@@ -287,6 +298,11 @@ func (a *App) SyncAllRules() {
 
 			if rule.Type == "domain" {
 				newTrie.Insert(rule.Rule, g)
+			} else if rule.Type == "wildcard" && (strings.Contains(rule.Rule, "*") || strings.Contains(rule.Rule, "?")) {
+				newWildcards = append(newWildcards, &WildcardRule{
+					Rule:  rule.Rule,
+					Group: g,
+				})
 			} else if rule.Type == "namespace" || rule.Type == "wildcard" {
 				cleanDomain := strings.TrimPrefix(rule.Rule, "*.")
 				newTrie.Insert(cleanDomain, g)
@@ -308,7 +324,11 @@ func (a *App) SyncAllRules() {
 	a.regexpRules = newRegexps
 	a.regexpRulesLocker.Unlock()
 
-	log.Debug().Int("regexps", len(newRegexps)).Msg("Rules synced (Trie + Regexp)")
+	a.wildcardRulesLocker.Lock()
+	a.wildcardRules = newWildcards
+	a.wildcardRulesLocker.Unlock()
+
+	log.Debug().Int("regexps", len(newRegexps)).Int("wildcards", len(newWildcards)).Msg("Rules synced (Trie + Wildcard + Regexp)")
 }
 
 func (a *App) SyncRegexpOnly() {
@@ -372,4 +392,20 @@ func (a *App) SearchRegexp(domain string) (*Group, bool) {
 
 func (a *App) LogBroadcaster() *logstream.Broadcaster {
 	return a.broadcaster
+}
+
+func (a *App) SearchWildcard(domain string) (*Group, bool) {
+	if !a.wildcardEnabled.Load() {
+		return nil, false
+	}
+
+	a.wildcardRulesLocker.RLock()
+	defer a.wildcardRulesLocker.RUnlock()
+
+	for _, wr := range a.wildcardRules {
+		if wildcard.Match(wr.Rule, domain) {
+			return wr.Group, true
+		}
+	}
+	return nil, false
 }
