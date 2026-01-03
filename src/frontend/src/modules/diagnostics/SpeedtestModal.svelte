@@ -28,6 +28,8 @@
   let isTestDone = false; // Non-reactive flag to prevent late updates
 
   let displayIP = $derived(clientInfo?.ip || manualIP || interfaceIP || "...");
+  let innerWidth = $state(typeof window !== "undefined" ? window.innerWidth : 1000);
+  let isMobile = $derived(innerWidth <= 700);
 
   let eventSource: EventSource | null = null;
   let statusText = $state(t("Initializing..."));
@@ -183,6 +185,8 @@
   }
 </script>
 
+<svelte:window onresize={() => (innerWidth = window.innerWidth)} />
+
 <div class="modal-overlay" onclick={onClose} transition:fade={{ duration: 200 }}>
   <div class="modal-content" onclick={(e) => e.stopPropagation()} transition:scale={{ start: 0.9 }}>
     <button class="close-btn" onclick={onClose}>
@@ -197,7 +201,7 @@
         id="OpenSpeedtest"
         xmlns="http://www.w3.org/2000/svg"
         xmlns:xlink="http://www.w3.org/1999/xlink"
-        viewBox="0 0 586 400"
+        viewBox={isMobile ? "0 0 400 740" : "0 0 586 400"}
         preserveAspectRatio="xMidYMid meet"
         class="ost-svg"
       >
@@ -306,137 +310,281 @@
           </symbol>
         </defs>
 
-        <g id="UI-Desk">
-          <!-- Gauge Background -->
-          <use
-            class="main-Gaugebg"
-            xlink:href="#mainGaugebg"
-            x="10.28"
-            y="36.11"
-            width="273.94"
-            height="245.39"
-          ></use>
-          <use xlink:href="#oDoMeter" x="10.28" y="36.11" width="273.94" height="245.39"></use>
-
-          <!-- Active Gauge -->
-          <use
-            class="main-GaugeBlue"
-            xlink:href="#mainGaugeBlue"
-            x="10.28"
-            y="36.11"
-            width="273.94"
-            height="245.39"
-            style="stroke-dashoffset: {gaugeOffset}; stroke-opacity: {currentSpeed > 0 ? 1 : 0};"
-          ></use>
-          <use
-            class="main-GaugeWhite"
-            xlink:href="#mainGaugeWhite"
-            x="10.28"
-            y="36.11"
-            width="273.94"
-            height="245.39"
-            style="stroke-dashoffset: {gaugeOffset + 1}; stroke-opacity: {currentSpeed > 0
-              ? 1
-              : 0};"
-          ></use>
-
-          <!-- Cards -->
-          <use xlink:href="#resultCard" class="Cards" x="307.4" y="31" width="278.1" height="85.5"
-          ></use>
-          <use
-            xlink:href="#resultCard"
-            class="Cards"
-            x="307.4"
-            y="129.3"
-            width="278.1"
-            height="85.5"
-          ></use>
-          <use
-            xlink:href="#resultCard"
-            class="Cards"
-            x="307.4"
-            y="228.5"
-            width="278.1"
-            height="85.5"
-          ></use>
-
-          <!-- Static Icons & Active Spinners -->
-
-          <!-- DOWNLOAD -->
-          <!-- x: ~325 (left of card), y: ~60 (centered vertically in card), increased size -->
-          <use xlink:href="#downSymbol" class="Symbol" x="325" y="58" width="24" height="30"></use>
-          <text x="446" y="58" class="rtext" style="text-anchor: middle;">DOWNLOAD</text>
-          {#if isDownload}
-            <use xlink:href="#spinner" x="550" y="40" width="20" height="20" style="fill: #14b0fe;"
+        {#if !isMobile}
+          <!-- DESKTOP LAYOUT -->
+          <g id="UI-Desk">
+            <!-- Gauge Background -->
+            <use
+              class="main-Gaugebg"
+              xlink:href="#mainGaugebg"
+              x="10.28"
+              y="36.11"
+              width="273.94"
+              height="245.39"
             ></use>
-          {/if}
+            <use xlink:href="#oDoMeter" x="10.28" y="36.11" width="273.94" height="245.39"></use>
 
-          <!-- UPLOAD -->
-          <!-- x: ~325, y: ~158 (centered) -->
-          <use xlink:href="#upSymbol" class="Symbol" x="325" y="156" width="24" height="30"></use>
-          <text x="446" y="156.3" class="rtext" style="text-anchor: middle;">UPLOAD</text>
-          {#if isUpload}
-            <use xlink:href="#spinner" x="550" y="138" width="20" height="20" style="fill: #14b0fe;"
+            <!-- Active Gauge -->
+            <use
+              class="main-GaugeBlue"
+              xlink:href="#mainGaugeBlue"
+              x="10.28"
+              y="36.11"
+              width="273.94"
+              height="245.39"
+              style="stroke-dashoffset: {gaugeOffset}; stroke-opacity: {currentSpeed > 0 ? 1 : 0};"
             ></use>
-          {/if}
+            <use
+              class="main-GaugeWhite"
+              xlink:href="#mainGaugeWhite"
+              x="10.28"
+              y="36.11"
+              width="273.94"
+              height="245.39"
+              style="stroke-dashoffset: {gaugeOffset + 1}; stroke-opacity: {currentSpeed > 0
+                ? 1
+                : 0};"
+            ></use>
 
-          <!-- PING -->
-          <!-- x: ~325, y: ~255 (centered) -->
-          <use xlink:href="#pingSymbol" x="325" y="255" width="26" height="26"></use>
-          <text x="446" y="255.5" class="rtext" style="text-anchor: middle;">PING</text>
+            <!-- Cards -->
+            <use xlink:href="#resultCard" class="Cards" x="307.4" y="31" width="278.1" height="85.5"
+            ></use>
+            <use
+              xlink:href="#resultCard"
+              class="Cards"
+              x="307.4"
+              y="129.3"
+              width="278.1"
+              height="85.5"
+            ></use>
+            <use
+              xlink:href="#resultCard"
+              class="Cards"
+              x="307.4"
+              y="228.5"
+              width="278.1"
+              height="85.5"
+            ></use>
 
-          <!-- Gauge Values -->
-          <text class="oDoLive-Speed" x="147" y="180">{currentSpeed.toFixed(1)}</text>
-          <text class="oDoLive-Status" x="147" y="210">{statusText}</text>
+            <!-- Static Icons & Active Spinners -->
 
-          <!-- CLIENT & SERVER INFO (Stacked on Left) -->
+            <!-- DOWNLOAD -->
+            <!-- x: ~325 (left of card), y: ~60 (centered vertically in card), increased size -->
+            <use xlink:href="#downSymbol" class="Symbol" x="325" y="58" width="24" height="30"
+            ></use>
+            <text x="446" y="58" class="rtext" style="text-anchor: middle;">DOWNLOAD</text>
+            {#if isDownload}
+              <use
+                xlink:href="#spinner"
+                x="550"
+                y="40"
+                width="20"
+                height="20"
+                style="fill: #14b0fe;"
+              ></use>
+            {/if}
 
-          <!-- Client Info Group (Top) -->
-          <use
-            xlink:href="#userIcon"
-            x="20"
-            y="300"
-            width="24"
-            height="24"
-            style="stroke: #333; fill: none; opacity: 0.5"
-          ></use>
-          <!-- Interface Name -->
-          <text class="info-label" x="53" y="310" style="text-anchor: start;">
-            {interfaceName}
-          </text>
-          <!-- IP Address -->
-          <text class="info-label-sub" x="53" y="330" style="text-anchor: start;">
-            {displayIP}
-          </text>
+            <!-- UPLOAD -->
+            <!-- x: ~325, y: ~158 (centered) -->
+            <use xlink:href="#upSymbol" class="Symbol" x="325" y="156" width="24" height="30"></use>
+            <text x="446" y="156.3" class="rtext" style="text-anchor: middle;">UPLOAD</text>
+            {#if isUpload}
+              <use
+                xlink:href="#spinner"
+                x="550"
+                y="138"
+                width="20"
+                height="20"
+                style="fill: #14b0fe;"
+              ></use>
+            {/if}
 
-          <!-- Server Info Group (Bottom) -->
-          <use
-            xlink:href="#serverIcon"
-            x="20"
-            y="350"
-            width="24"
-            height="24"
-            style="stroke: #333; fill: none; opacity: 0.5"
-          ></use>
-          <!-- Server Name -->
-          <text class="info-label" x="53" y="360" style="text-anchor: start;">
-            {serverInfo ? serverInfo.sponsor || serverInfo.name : "..."}
-          </text>
-          <!-- Location -->
-          <text class="info-label-sub" x="53" y="380" style="text-anchor: start;">
-            {serverInfo ? serverInfo.country : ""}
-          </text>
+            <!-- PING -->
+            <!-- x: ~325, y: ~255 (centered) -->
+            <use xlink:href="#pingSymbol" x="325" y="255" width="26" height="26"></use>
+            <text x="446" y="255.5" class="rtext" style="text-anchor: middle;">PING</text>
 
-          <!-- Results -->
-          <text class="rtextnum" x="446" y="90">{formatVal(downloadMbps)}</text>
-          <text class="rtextmbms" x="446" y="105">Mbps</text>
+            <!-- Gauge Values -->
+            <text class="oDoLive-Speed" x="147" y="180">{currentSpeed.toFixed(1)}</text>
+            <text class="oDoLive-Status" x="147" y="210">{statusText}</text>
 
-          <text class="rtextnum" x="446" y="190">{formatVal(uploadMbps)}</text>
-          <text class="rtextmbms" x="446" y="206">Mbps</text>
+            <!-- CLIENT & SERVER INFO (Stacked on Left) -->
 
-          <text class="rtextnum" x="446" y="285">{formatVal(pingMs, 0)}</text>
-          <text class="rtextmbms" x="446" y="300">ms</text>
-        </g>
+            <!-- Client Info Group (Top) -->
+            <use
+              xlink:href="#userIcon"
+              x="20"
+              y="300"
+              width="24"
+              height="24"
+              style="stroke: #333; fill: none; opacity: 0.5"
+            ></use>
+            <!-- Interface Name -->
+            <text class="info-label" x="53" y="310" style="text-anchor: start;">
+              {interfaceName}
+            </text>
+            <!-- IP Address -->
+            <text class="info-label-sub" x="53" y="330" style="text-anchor: start;">
+              {displayIP}
+            </text>
+
+            <!-- Server Info Group (Bottom) -->
+            <use
+              xlink:href="#serverIcon"
+              x="20"
+              y="350"
+              width="24"
+              height="24"
+              style="stroke: #333; fill: none; opacity: 0.5"
+            ></use>
+            <!-- Server Name -->
+            <text class="info-label" x="53" y="360" style="text-anchor: start;">
+              {serverInfo ? serverInfo.sponsor || serverInfo.name : "..."}
+            </text>
+            <!-- Location -->
+            <text class="info-label-sub" x="53" y="380" style="text-anchor: start;">
+              {serverInfo ? serverInfo.country : ""}
+            </text>
+
+            <!-- Results -->
+            <text class="rtextnum" x="446" y="90">{formatVal(downloadMbps)}</text>
+            <text class="rtextmbms" x="446" y="105">Mbps</text>
+
+            <text class="rtextnum" x="446" y="190">{formatVal(uploadMbps)}</text>
+            <text class="rtextmbms" x="446" y="206">Mbps</text>
+
+            <text class="rtextnum" x="446" y="285">{formatVal(pingMs, 0)}</text>
+            <text class="rtextmbms" x="446" y="300">ms</text>
+          </g>
+        {:else}
+          <!-- MOBILE LAYOUT (Vertical Stack) -->
+          <g id="UI-Mobile">
+            <!-- Gauge (Centered) - X offset: (400 - 273.94)/2 = 63.03 -->
+            <g transform="translate(63, 20)">
+              <use class="main-Gaugebg" xlink:href="#mainGaugebg" width="273.94" height="245.39"
+              ></use>
+              <use xlink:href="#oDoMeter" width="273.94" height="245.39"></use>
+
+              <use
+                class="main-GaugeBlue"
+                xlink:href="#mainGaugeBlue"
+                width="273.94"
+                height="245.39"
+                style="stroke-dashoffset: {gaugeOffset}; stroke-opacity: {currentSpeed > 0
+                  ? 1
+                  : 0};"
+              ></use>
+              <use
+                class="main-GaugeWhite"
+                xlink:href="#mainGaugeWhite"
+                width="273.94"
+                height="245.39"
+                style="stroke-dashoffset: {gaugeOffset + 1}; stroke-opacity: {currentSpeed > 0
+                  ? 1
+                  : 0};"
+              ></use>
+
+              <!-- Gauge Values (Relative to Gauge group) -->
+              <!-- Original X=147 (Center of 273 is ~137). 147 is slightly right. Let's use 137 for perfect center? 
+                      The original has x=147 for text-anchor middle? 
+                      273.94 width. Center is 136.97. 
+                      Let's stick to relative coordinates from the desktop version:
+                      Desktop X: 147 (Center + 10). Y: 180.
+                 -->
+              <text class="oDoLive-Speed" x="137" y="144">{currentSpeed.toFixed(1)}</text>
+              <text class="oDoLive-Status" x="137" y="174">{statusText}</text>
+            </g>
+
+            <!-- Cards Stacked Below Gauge -->
+            <!-- Gauge ends at Y=20+245 = 265. Start Cards at Y=280. -->
+            <!-- Center X for cards: (400 - 278.1)/2 = 60.95 -->
+
+            <g transform="translate(61, 280)">
+              <!-- DOWNLOAD CARD -->
+              <use xlink:href="#resultCard" class="Cards" width="278.1" height="85.5"></use>
+              <use xlink:href="#downSymbol" class="Symbol" x="18" y="27" width="24" height="30"
+              ></use>
+              <text x="139" y="27" class="rtext" style="text-anchor: middle;">DOWNLOAD</text>
+              {#if isDownload}
+                <use
+                  xlink:href="#spinner"
+                  x="240"
+                  y="10"
+                  width="20"
+                  height="20"
+                  style="fill: #14b0fe;"
+                ></use>
+              {/if}
+              <text class="rtextnum" x="139" y="59">{formatVal(downloadMbps)}</text>
+              <text class="rtextmbms" x="139" y="74">Mbps</text>
+            </g>
+
+            <g transform="translate(61, 375)">
+              <!-- UPLOAD CARD -->
+              <use xlink:href="#resultCard" class="Cards" width="278.1" height="85.5"></use>
+              <use xlink:href="#upSymbol" class="Symbol" x="18" y="27" width="24" height="30"></use>
+              <text x="139" y="27.3" class="rtext" style="text-anchor: middle;">UPLOAD</text>
+              {#if isUpload}
+                <use
+                  xlink:href="#spinner"
+                  x="240"
+                  y="10"
+                  width="20"
+                  height="20"
+                  style="fill: #14b0fe;"
+                ></use>
+              {/if}
+              <text class="rtextnum" x="139" y="59">{formatVal(uploadMbps)}</text>
+              <text class="rtextmbms" x="139" y="74">Mbps</text>
+            </g>
+
+            <g transform="translate(61, 470)">
+              <!-- PING CARD -->
+              <use xlink:href="#resultCard" class="Cards" width="278.1" height="85.5"></use>
+              <use xlink:href="#pingSymbol" x="18" y="27" width="26" height="26"></use>
+              <text x="139" y="27.5" class="rtext" style="text-anchor: middle;">PING</text>
+              <text class="rtextnum" x="139" y="57">{formatVal(pingMs, 0)}</text>
+              <text class="rtextmbms" x="139" y="72">ms</text>
+            </g>
+
+            <!-- INFO (Bottom) -->
+            <g transform="translate(40, 580)">
+              <!-- Client Info -->
+              <use
+                xlink:href="#userIcon"
+                x="0"
+                y="0"
+                width="24"
+                height="24"
+                style="stroke: #333; fill: none; opacity: 0.5"
+              ></use>
+              <text class="info-label" x="33" y="10" style="text-anchor: start;"
+                >{interfaceName}</text
+              >
+              <text class="info-label-sub" x="33" y="30" style="text-anchor: start;"
+                >{displayIP}</text
+              >
+            </g>
+
+            <g transform="translate(40, 630)">
+              <!-- Server Info -->
+              <use
+                xlink:href="#serverIcon"
+                x="0"
+                y="0"
+                width="24"
+                height="24"
+                style="stroke: #333; fill: none; opacity: 0.5"
+              ></use>
+              <text class="info-label" x="33" y="10" style="text-anchor: start;"
+                >{serverInfo ? serverInfo.sponsor || serverInfo.name : "..."}</text
+              >
+              <text class="info-label-sub" x="33" y="30" style="text-anchor: start;"
+                >{serverInfo ? serverInfo.country : ""}</text
+              >
+            </g>
+          </g>
+        {/if}
       </svg>
     </div>
 
@@ -495,7 +643,15 @@
     width: 100%;
     max-width: 700px;
     margin: 0 auto;
-    aspect-ratio: 586/400; /* Increased aspect ratio for height */
+    margin: 0 auto;
+    aspect-ratio: 586/400; /* Desktop base ratio */
+  }
+
+  @media (max-width: 700px) {
+    .ost-wrapper {
+      max-width: 400px;
+      aspect-ratio: 400/740; /* Mobile vertical ratio */
+    }
   }
 
   .ost-svg {

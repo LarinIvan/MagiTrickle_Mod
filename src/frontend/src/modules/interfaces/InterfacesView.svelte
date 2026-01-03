@@ -169,7 +169,7 @@
 
 <div class="interfaces-view">
   <div class="header">
-    <h2>{t("Interface Aliases")}</h2>
+    <h2>{t("Interfaces")}</h2>
     <div class="actions">
       {#if settings.config.show_interface_ips}
         <Tooltip value={t("Check External IPs")}>
@@ -202,7 +202,7 @@
   <div class="stats-header-row">
     <div class="header-left">
       <div class="stat-header-col">
-        <span class="stat-label">{t("All Interfaces / Used")}</span>
+        <span class="stat-label">{t("Interfaces / Used")}</span>
         <span class="stat-value"
           >{interfaceList.length} <span class="stat-sep">/</span>
           <span class="stat-active">{stats.global.usedInterfaces}</span></span
@@ -240,51 +240,54 @@
   <div class="list">
     {#each interfaceList as item}
       <div class="interface-row">
-        <div class="interface-info">
-          <!-- Status Dot -->
-          <div
-            class="status-dot"
-            class:active={item.active}
-            title={item.active ? t("interface.active") : t("interface.inactive")}
-          ></div>
-
-          <div class="interface-details">
-            <div class="interface-id">{item.id}</div>
-            {#if settings.config.show_interface_ips}
-              {#if item.ip}
-                <div class="interface-ip" title={t("interface.ip")}>{item.ip}</div>
-              {:else if item.id === "blackhole"}
-                <div class="interface-ip" title={t("interface.ip")}>0.0.0.0</div>
-              {/if}
-
-              {#if externalIPs[item.id] === "loading"}
-                <div class="interface-external-ip loading">
-                  🌐 <span class="shimmer">{t("checking...")}</span>
-                </div>
-              {:else if externalIPs[item.id] === "error"}
-                <div
-                  class="interface-external-ip error"
-                  title={t("Failed to look up external IP for this interface")}
-                >
-                  🌐 {t("Failed to get IP")}
-                </div>
-              {:else if externalIPs[item.id]}
-                <div class="interface-external-ip success">
-                  🌐 {externalIPs[item.id]}
-                </div>
-              {:else}
-                <!-- Undefined/Null case: do nothing or show checking if wanted -->
-              {/if}
-            {/if}
+        <div class="interface-info-wrapper">
+          <div class="status-wrapper">
+            <div
+              class="status-dot"
+              class:active={item.active}
+              title={item.active ? t("interface.active") : t("interface.inactive")}
+            ></div>
           </div>
 
-          <input
-            type="text"
-            placeholder={t("Alias (optional)")}
-            bind:value={item.alias}
-            oninput={handleChange}
-            class="alias-input"
-          />
+          <div class="interface-main-content">
+            <div class="interface-id">{item.id}</div>
+            <input
+              type="text"
+              placeholder={t("Alias (optional)")}
+              bind:value={item.alias}
+              oninput={handleChange}
+              class="alias-input"
+            />
+
+            <div class="interface-ip-group">
+              {#if settings.config.show_interface_ips}
+                {#if item.ip}
+                  <div class="interface-ip" title={t("interface.ip")}>{item.ip}</div>
+                {:else if item.id === "blackhole"}
+                  <div class="interface-ip" title={t("interface.ip")}>0.0.0.0</div>
+                {/if}
+
+                {#if externalIPs[item.id] === "loading"}
+                  <div class="interface-external-ip loading">
+                    🌐 <span class="shimmer">{t("checking...")}</span>
+                  </div>
+                {:else if externalIPs[item.id] === "error"}
+                  <div
+                    class="interface-external-ip error"
+                    title={t("Failed to look up external IP for this interface")}
+                  >
+                    🌐 {t("Failed to get IP")}
+                  </div>
+                {:else if externalIPs[item.id]}
+                  <div class="interface-external-ip success">
+                    🌐 {externalIPs[item.id]}
+                  </div>
+                {:else}
+                  <!-- Undefined/Null case -->
+                {/if}
+              {/if}
+            </div>
+          </div>
         </div>
 
         <div class="interface-actions-row">
@@ -340,7 +343,6 @@
 
 <style>
   .interfaces-view {
-    padding: 1rem;
     padding: 1rem;
     max-width: 900px;
     margin: 0 auto;
@@ -439,25 +441,11 @@
     border-color: var(--accent);
   }
 
-  .interface-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex: 1;
-  }
-
   .interface-id {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--accent);
-    /* width: 150px; Removed fixed width to accommodate flex column */
-    flex-shrink: 0;
-  }
-
-  .interface-details {
-    display: flex;
-    flex-direction: column;
-    width: 150px;
+    margin-right: 0.5rem;
     flex-shrink: 0;
   }
 
@@ -597,5 +585,248 @@
     color: var(--text-secondary, #9ca3af);
     font-style: italic;
     padding: 0 0.5rem;
+  }
+
+  @media (max-width: 700px) {
+    .interfaces-view {
+      padding: 0.5rem;
+    }
+
+    .list {
+      padding-right: 1rem;
+    }
+
+    .interface-row {
+      flex-direction: column;
+      align-items: stretch;
+      position: relative;
+      gap: 0.5rem;
+      padding-right: 1rem;
+    }
+
+    .header {
+      margin-bottom: 0.5rem;
+    }
+
+    .header h2 {
+      font-size: 1.25rem; /* Smaller title */
+    }
+
+    .actions {
+      margin-right: 0.25rem;
+    }
+
+    .stats-header-row {
+      flex-direction: column;
+      gap: 0;
+      align-items: stretch;
+      margin-bottom: 1rem;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+    }
+
+    .header-left,
+    .header-right {
+      width: 100%;
+      padding: 0;
+      gap: 0;
+    }
+
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      /* padding-right removed, moved to col */
+    }
+
+    .stat-header-col {
+      display: flex;
+      flex-direction: row;
+      gap: 1rem;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0.1rem 0.75rem 0.1rem 0; /* Right padding 1rem to frame it */
+      border: none;
+      box-sizing: border-box;
+    }
+
+    .stat-header-col:last-child {
+      border: none;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+
+    .stat-value {
+      flex-shrink: 0;
+    }
+
+    /* Mobile Interface Card Styles */
+    .interface-actions-row {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      padding: 0;
+      margin: 0;
+      z-index: 2; /* Ensure button is clickcable */
+    }
+
+    .interface-info-wrapper {
+      position: relative;
+      padding-left: 1rem; /* Space for status dot */
+      width: 100%;
+    }
+
+    .status-wrapper {
+      position: absolute;
+      top: 0.25rem;
+      left: 0;
+    }
+
+    .interface-main-content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .interface-ip-group {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+    }
+
+    .interface-id {
+      margin-bottom: 0; /* Reset */
+    }
+
+    .interface-stats {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      border-left: none;
+      padding: 0;
+      margin-top: 0.5rem;
+      gap: 0; /* Close gap */
+    }
+
+    .stat-cell {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      height: auto;
+      text-align: left;
+      padding: 0.25rem 0.5rem; /* Add horizontal padding */
+      border: none;
+    }
+  }
+
+  /* Desktop Default Styles for New Classes (Grid Layout) */
+  .interface-main-content {
+    display: grid;
+    grid-template-columns: 150px 1fr; /* Restore original 150px width for details column */
+    grid-template-areas:
+      "id input"
+      "ips input";
+    align-items: center; /* Vertically center input */
+    gap: 0 1rem; /* Gap between columns */
+    flex: 1;
+  }
+
+  .interface-id {
+    grid-area: id;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .interface-ip-group {
+    grid-area: ips;
+    display: flex;
+    flex-direction: column; /* Desktop: stacked IPs */
+    gap: 0;
+  }
+
+  .interface-external-ip {
+    padding-right: 1rem;
+  }
+
+  .alias-input {
+    grid-area: input;
+    align-self: center;
+    width: 100%;
+  }
+
+  .interface-info-wrapper {
+    display: flex;
+    width: 100%;
+    gap: 1rem;
+    padding-left: 0;
+  }
+
+  .status-wrapper {
+    display: flex;
+    align-items: center;
+    width: 10px; /* Fixed width for status dot area */
+    justify-content: center;
+  }
+
+  /* Mobile Adjustments */
+  @media (max-width: 700px) {
+    .interface-main-content {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between; /* Distribute ID and IPs */
+      gap: 0.5rem; /* Gap between ID and IPs */
+      padding-right: 2.25rem; /* Space for absolute speedtest button */
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .interface-info-wrapper {
+      padding-left: 1rem;
+      padding-right: 0;
+      box-sizing: border-box;
+    }
+
+    .status-wrapper {
+      position: absolute;
+      top: 0.35rem; /* Better vertical alignment with ID */
+      left: 0;
+      width: auto;
+    }
+
+    .interface-ip-group {
+      display: contents; /* Children participate in parent flex layout */
+    }
+
+    .interface-ip,
+    .interface-external-ip {
+      font-size: 0.85rem;
+      padding: 0;
+    }
+
+    .interface-id {
+      margin: 0;
+      line-height: 1; /* Minimize height impact */
+    }
+
+    .alias-input {
+      width: 100%;
+      margin-top: 0.25rem;
+      order: 10; /* Force to last */
+      max-width: 100%; /* Prevent overflow */
+    }
   }
 </style>
