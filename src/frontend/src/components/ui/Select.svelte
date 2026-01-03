@@ -8,6 +8,7 @@
     selected?: string;
     onValueChange?: (v: string) => void;
     ariaLabel?: string;
+    placeholder?: string;
     [key: string]: any;
   };
 
@@ -16,11 +17,14 @@
     selected = $bindable<string>(),
     onValueChange,
     ariaLabel = "Select",
+    placeholder = "",
     ...rest
   }: Props = $props();
 
   const selected_option = $derived(options.find((o) => o.value === selected));
-  const selected_label = $derived(selected_option?.label ?? selected ?? "");
+  const selected_label = $derived(
+    selected_option?.label ?? (selected ? selected : placeholder) ?? "",
+  );
 </script>
 
 <div class="select-wrap" {...rest}>
@@ -93,7 +97,15 @@
     height: fit-content;
     cursor: pointer;
   }
-  :global([data-select-trigger]:hover) {
+  @media (hover: hover) {
+    :global([data-select-trigger]:hover) {
+      background-color: var(--bg-dark);
+      outline: 1px solid var(--bg-light-extra);
+    }
+  }
+
+  :global([data-select-trigger]:active),
+  :global([data-select-trigger][data-state="open"]) {
     background-color: var(--bg-dark);
     outline: 1px solid var(--bg-light-extra);
   }

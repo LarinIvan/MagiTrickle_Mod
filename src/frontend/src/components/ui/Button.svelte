@@ -36,7 +36,15 @@
       cursor: pointer;
     }
 
-    &:hover {
+    @media (hover: hover) {
+      &:hover {
+        background-color: var(--bg-dark);
+        color: var(--text);
+        border: 1px solid var(--bg-light-extra);
+      }
+    }
+
+    &:active {
       background-color: var(--bg-dark);
       color: var(--text);
       border: 1px solid var(--bg-light-extra);
@@ -60,7 +68,13 @@
         border: 1px solid var(--bg-light-extra);
       }
 
-      &:hover {
+      @media (hover: hover) {
+        &:hover {
+          background-color: var(--bg-light-extra);
+        }
+      }
+
+      &:active {
         background-color: var(--bg-light-extra);
       }
     }

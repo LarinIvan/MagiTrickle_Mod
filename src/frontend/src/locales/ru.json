@@ -55,7 +55,7 @@
   "Export Interface Config": "Экспорт алиасов",
   "Import Interface Config": "Импорт алиасов",
   "Alias (optional)": "Алиас (опционально)",
-  "{count} selected": "{count} выбрано",
+  "{count} selected": "Выбрано групп: {count}",
   "Enable": "Включить",
   "Disable": "Отключить",
   "Drag Group": "Перетащить группу",

@@ -45,6 +45,10 @@ html {
   font-size: var(--font-size-base);
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background-color: var(--bg-dark);
   margin: 0;

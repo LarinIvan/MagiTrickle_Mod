@@ -13,6 +13,7 @@
   import ConsoleWindow from "../console/ConsoleWindow.svelte";
   import HeaderSettings from "./HeaderSettings.svelte";
   import { settings } from "../../data/settings.svelte";
+  import BottomNav from "./BottomNav.svelte";
   import { onMount } from "svelte";
 
   let active_tab = $state("groups");
@@ -34,7 +35,7 @@
 
 <main>
   <Tabs.Root bind:value={active_tab}>
-    <nav>
+    <nav class="top-nav">
       <Tabs.List>
         <Tabs.Trigger value="groups">{t("Groups")}</Tabs.Trigger>
         <Tabs.Trigger value="interfaces">{t("Interfaces")}</Tabs.Trigger>
@@ -55,15 +56,10 @@
       <div style:display={active_tab === "settings" ? "block" : "none"}>
         <SettingsView />
       </div>
-
-      <!-- <Tabs.Content value="settings">
-        <SettingsPanel />
-      </Tabs.Content> -->
-      <!-- <Tabs.Content value="logs">
-        <LogsPanel />
-      </Tabs.Content> -->
     </article>
   </Tabs.Root>
+
+  <BottomNav bind:active={active_tab} />
 </main>
 
 <style>
@@ -77,11 +73,13 @@
     z-index: 1;
   }
 
-  nav {
+  .top-nav {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
+    width: 100%; /* Ensure it spans width */
+    max-width: 1000px; /* Match Tabs.Root width constraint */
   }
 
   .header-controls {
@@ -129,17 +127,40 @@
   }
 
   @media (max-width: 700px) {
-    :global {
-      [data-tabs-root] {
-        width: 100%;
-      }
-      [data-tabs-trigger] {
-        font-size: 1.2rem;
-        padding: 0.5rem 0.5rem;
-      }
-      [data-tabs-list] {
-        gap: 0.5rem;
-      }
+    main {
+      padding-bottom: 80px; /* Space for BottomNav */
+      margin-bottom: 0;
+    }
+
+    .top-nav {
+      display: none; /* Hide top nav tabs */
+    }
+
+    /* Keep header controls visible? Logic says we only want Tabs List hidden. 
+       But header-controls usually contains settings, log toggles etc.
+       If we hide top-nav, we hide header-controls too. 
+       We probably want header-controls to be accessible or moved?
+       For now, per instructions: "Вкладки Групп/Интерфейсы/Настройки переместим в меню снизу".
+       However, HeaderSettings includes Global Toggle, locale, etc.
+       If we hide them, user loses functionality. 
+       Let's keep them visible but perhaps styled differently, or just hide the Tabs List.
+    */
+  }
+
+  @media (max-width: 700px) {
+    /* Refined mobile styles */
+    :global([data-tabs-list]) {
+      display: none; /* Hide Tabs List specifically */
+    }
+
+    .top-nav {
+      display: flex;
+      justify-content: flex-end; /* Only controls remain */
+      padding: 0.5rem 0;
+    }
+
+    .header-controls {
+      gap: 1rem;
     }
   }
 </style>

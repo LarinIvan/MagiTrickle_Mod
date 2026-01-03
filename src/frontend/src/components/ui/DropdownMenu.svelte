@@ -17,13 +17,15 @@
 
 <DropdownMenu.Root>
   <DropdownMenu.Trigger>{@render trigger()}</DropdownMenu.Trigger>
-  <DropdownMenu.Content alignOffset={0} align="end">
-    {#each items as item, index}
-      <DropdownMenu.Item>
-        {@render item()}
-      </DropdownMenu.Item>
-    {/each}
-  </DropdownMenu.Content>
+  <DropdownMenu.Portal>
+    <DropdownMenu.Content alignOffset={0} align="end">
+      {#each items as item, index}
+        <DropdownMenu.Item>
+          {@render item()}
+        </DropdownMenu.Item>
+      {/each}
+    </DropdownMenu.Content>
+  </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
 <style>
@@ -41,7 +43,16 @@
         cursor: pointer;
       }
 
-      &:hover {
+      @media (hover: hover) {
+        &:hover {
+          background-color: var(--bg-dark);
+          color: var(--text);
+          border: 1px solid var(--bg-light-extra);
+        }
+      }
+
+      &:active,
+      &[data-state="open"] {
         background-color: var(--bg-dark);
         color: var(--text);
         border: 1px solid var(--bg-light-extra);

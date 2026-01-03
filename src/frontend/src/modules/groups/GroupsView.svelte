@@ -10,6 +10,7 @@
   import { persistedState } from "../../utils/persisted-state.svelte";
   import Button from "../../components/ui/Button.svelte";
   import Select from "../../components/ui/Select.svelte";
+  import Switch from "../../components/ui/Switch.svelte";
   import Tooltip from "../../components/ui/Tooltip.svelte";
   import {
     Add,
@@ -76,13 +77,31 @@
   } | null>(null);
   let isSelecting = $state(false);
 
+  let client_width = $state<number>(0);
+  let is_desktop = $derived(client_width > 700);
+
+  let commonInterface = $derived.by(() => {
+    if (selectedGroupIds.size === 0) return "";
+    let firstInterface: string | null = null;
+    for (const id of selectedGroupIds) {
+      const group = groupsStore.all.find((g) => g.id === id);
+      if (!group) continue;
+      if (firstInterface === null) {
+        firstInterface = group.interface;
+      } else if (firstInterface !== group.interface) {
+        return ""; // Mixed interfaces
+      }
+    }
+    return firstInterface || "";
+  });
+
   function handleGroupSelect(event: CustomEvent<{ originalEvent: MouseEvent; id: string }>) {
     const { originalEvent: e, id } = event.detail;
     const index = groupsStore.all.findIndex((g) => g.id === id);
     if (index === -1) return;
 
-    if (e.ctrlKey || e.metaKey) {
-      // Toggle selection
+    if (e.ctrlKey || e.metaKey || !is_desktop) {
+      // Toggle selection (Desktop Ctrl+Click OR Mobile default)
       if (selectedGroupIds.has(id)) {
         selectedGroupIds.delete(id);
       } else {
@@ -758,6 +777,7 @@
 </script>
 
 <svelte:window
+  bind:innerWidth={client_width}
   on:mousedown={startSelection}
   on:mousemove={updateSelection}
   on:mouseup={endSelection}
@@ -829,33 +849,53 @@
   {/if}
 
   {#if selectedGroupIds.size > 0}
+    {@const selectedGroups = groupsStore.all.filter((g) => selectedGroupIds.has(g.id))}
+    {@const allEnabled = selectedGroups.every((g) => g.enable)}
+    {@const anyEnabled = selectedGroups.some((g) => g.enable)}
     <div class="bulk-actions" transition:scale>
-      <div class="bulk-count">
-        {t("{count} selected").replace("{count}", selectedGroupIds.size.toString())}
+      <div class="bulk-header">
+        <div class="bulk-count">
+          {t("{count} selected").replace("{count}", selectedGroupIds.size.toString())}
+        </div>
+
+        <div class="bulk-header-actions">
+          <div class="bulk-switch-wrapper" title={t("Toggle Selection")}>
+            <Switch
+              checked={allEnabled}
+              mixed={anyEnabled && !allEnabled}
+              onCheckedChange={() => {
+                const newState = anyEnabled && !allEnabled ? true : !allEnabled;
+                groupsStore.all.forEach((g) => {
+                  if (selectedGroupIds.has(g.id)) g.enable = newState;
+                });
+                groupsStore.all = [...groupsStore.all];
+              }}
+            />
+          </div>
+
+          <Tooltip value={t("Move Up")}>
+            <Button small onclick={() => moveSelectedGroupsStep("up")}>
+              <MoveUp size={18} />
+            </Button>
+          </Tooltip>
+          <Tooltip value={t("Move Down")}>
+            <Button small onclick={() => moveSelectedGroupsStep("down")}>
+              <MoveDown size={18} />
+            </Button>
+          </Tooltip>
+
+          <Tooltip value={t("Delete Selected")}>
+            <Button small onclick={deleteSelectedGroups} style="color: #ff4d4f;">
+              <Delete size={18} />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
-      <div class="bulk-buttons">
-        <Button
-          small
-          onclick={() => {
-            groupsStore.all.forEach((g) => {
-              if (selectedGroupIds.has(g.id)) g.enable = true;
-            });
-            groupsStore.all = [...groupsStore.all];
-          }}>{t("Enable")}</Button
-        >
-        <Button
-          small
-          onclick={() => {
-            groupsStore.all.forEach((g) => {
-              if (selectedGroupIds.has(g.id)) g.enable = false;
-            });
-            groupsStore.all = [...groupsStore.all];
-          }}>{t("Disable")}</Button
-        >
+
+      <div class="bulk-body">
         <div class="bulk-select-interface">
           <Select
             options={[
-              { value: "", label: t("Set Interface..."), disabled: true },
               ...INTERFACES.map((item) => ({
                 value: item.id,
                 label: item.active
@@ -864,46 +904,21 @@
                 html: true,
               })),
             ]}
-            selected=""
+            selected={commonInterface}
+            placeholder={t("Set Interface...")}
             onValueChange={(val) => {
               if (!val) return;
               groupsStore.all.forEach((g) => {
                 if (selectedGroupIds.has(g.id)) g.interface = val;
               });
               groupsStore.all = [...groupsStore.all];
-              // Reset selection is tricky with custom component binding, but here we just trigger action.
-              // The Select component might hold the value. We can force it back to "" if we bound a variable,
-              // but here we used `selected=""`. Let's assume onValueChange handles it,
-              // or better, bind a local variable and reset it.
             }}
           />
         </div>
-        <Button small secondary onclick={clearSelection}>{t("Cancel")}</Button>
-        <div
-          class="separator-vertical"
-          style="margin: 0 0.5rem; height: 1.5rem; width: 1px; background: var(--color-border);"
-        ></div>
 
-        <Tooltip value={t("Move Up")}>
-          <Button small onclick={() => moveSelectedGroupsStep("up")}>
-            <MoveUp size={18} />
-          </Button>
-        </Tooltip>
-        <Tooltip value={t("Move Down")}>
-          <Button small onclick={() => moveSelectedGroupsStep("down")}>
-            <MoveDown size={18} />
-          </Button>
-        </Tooltip>
-
-        <div
-          class="separator"
-          style="margin: 0 0.5rem; height: 1.5rem; width: 1px; background: var(--color-border);"
-        ></div>
-        <Tooltip value={t("Delete Selected")}>
-          <Button small onclick={deleteSelectedGroups} style="color: #ff4d4f;">
-            <Delete size={18} />
-          </Button>
-        </Tooltip>
+        <Button small secondary onclick={clearSelection} class="bulk-cancel-btn"
+          >{t("Cancel")}</Button
+        >
       </div>
     </div>
   {/if}
@@ -1057,12 +1072,18 @@
     margin-bottom: 0.75rem;
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: 20;
     background: color-mix(in oklab, var(--bg-dark) 92%, var(--bg-dark-extra) 8%);
   }
 
   .group-controls-search {
     flex: 1 1 58px;
+  }
+
+  @media (max-width: 700px) {
+    .group-controls-search {
+      flex: 1 1 100%;
+    }
   }
 
   .group-search-input {
@@ -1105,6 +1126,13 @@
     gap: 0.5rem;
   }
 
+  @media (max-width: 700px) {
+    .group-controls-actions {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+
   .no-groups {
     width: 100%;
     text-align: center;
@@ -1128,18 +1156,99 @@
     transform: translateX(-50%);
     background: var(--bg-dark);
     border: 1px solid var(--accent);
-    padding: 0.75rem 1.5rem;
-    border-radius: 2rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
     display: flex;
-    align-items: center;
-    gap: 1.5rem;
+    flex-direction: column;
+    gap: 0.5rem;
     z-index: 100;
+    min-width: 340px;
   }
 
   :global(body.is-selecting) {
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  .bulk-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .bulk-header-actions {
+    display: flex;
+    align-items: center; /* Ensure vertical center alignment */
+    /* If height discrepancies exist, we might need a fixed height or line-height adjustments */
+    height: 100%;
+    gap: 0.25rem;
+  }
+
+  :global(.bulk-header-actions button) {
+    display: flex;
+    align-items: center;
+  }
+
+  .bulk-body {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .bulk-select-interface {
+    flex: 1;
+    min-width: 0; /* Critical for truncation in flex items */
+    margin: 0;
+    margin-right: 0.25rem;
+  }
+
+  /* Force correct width on the wrapper div from Select.svelte */
+  :global(.bulk-select-interface .select-wrap) {
+    width: 100% !important;
+    min-width: 0;
+    display: block; /* Ensure it takes width */
+  }
+
+  /* Force truncation on the Select trigger inside */
+  .bulk-select-interface :global([data-select-trigger]),
+  .bulk-select-interface :global(button[data-select-trigger]) {
+    width: 100% !important;
+    display: flex !important;
+    max-width: 100%;
+    min-width: 0;
+    background-color: var(--bg-light-extra) !important; /* Lighter background */
+    border: 1px solid var(--border-light);
+    color: var(--text);
+  }
+
+  /* Target the internal wrapper 'selected' */
+  .bulk-select-interface :global(.selected) {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* Target the value text */
+  .bulk-select-interface :global(.selected-value) {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+  }
+
+  .bulk-switch-wrapper {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 100%;
   }
 
   .bulk-count {
@@ -1148,9 +1257,15 @@
     white-space: nowrap;
   }
 
-  .bulk-buttons {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  @media (max-width: 700px) {
+    .bulk-actions {
+      width: 90%;
+      min-width: 0;
+    }
+
+    .bulk-body {
+      gap: 0.5rem;
+      justify-content: space-between;
+    }
   }
 </style>

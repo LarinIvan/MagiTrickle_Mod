@@ -29,10 +29,14 @@
         padding-right: 2px;
         transition: background-color 0.2s ease;
         border: none;
+        position: relative;
+        -webkit-tap-highlight-color: transparent;
       }
 
       &:focus-visible {
-        outline: none;
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 9999px;
       }
 
       &:disabled {
@@ -50,6 +54,10 @@
 
       &[data-state="unchecked"] {
         background-color: var(--bg-light-extra);
+      }
+      /* Mixed State Override Root */
+      &:global([data-mixed="true"]) {
+        background-color: var(--status-orange, #f97316);
       }
     }
 
@@ -74,10 +82,10 @@
         transform: translateX(0);
       }
 
-      /* Mixed State Override */
+      /* Mixed State Override Thumb */
       &:global([data-mixed="true"]) {
         transform: translateX(7px) !important;
-        background-color: var(--text-2) !important;
+        background-color: #fff !important;
       }
     }
   }

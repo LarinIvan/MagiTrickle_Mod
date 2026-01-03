@@ -33,5 +33,6 @@
     "Failed to start update": "Failed to start update",
     "settings.advanced_engines": "Advanced Matching Engines",
     "settings.enable_wildcard": "Use Wildcard",
-    "settings.enable_wildcard_desc": "Support patterns with * and ? characters"
+    "settings.enable_wildcard_desc": "Support patterns with * and ? characters",
+    "{count} selected": "Groups selected: {count}"
 }

@@ -207,9 +207,11 @@
           bind:selected={group.interface}
         />
 
-        <Tooltip value={t(group.enable ? "Disable Group" : "Enable Group")}>
-          <Switch class="enable-group" bind:checked={group.enable} />
-        </Tooltip>
+        <div class="group-enable-switch">
+          <Tooltip value={t(group.enable ? "Disable Group" : "Enable Group")}>
+            <Switch class="enable-group" bind:checked={group.enable} />
+          </Tooltip>
+        </div>
 
         {#if is_desktop}
           <Tooltip value={t("Move Up")}>
@@ -247,63 +249,79 @@
               <ImportList size={20} />
             </Button>
           </Tooltip>
-        {:else}
-          <DropdownMenu>
-            {#snippet trigger()}
-              <Dots size={20} />
-            {/snippet}
-            {#snippet item1()}
-              <Button
-                general
-                onclick={() => {
-                  addRuleToGroup(group_index, defaultRule(), true);
-                  open = true;
-                }}
-              >
-                <div class="dd-icon"><Add size={20} /></div>
-                <div class="dd-label">{t("Add Rule")}</div>
-              </Button>
-            {/snippet}
-            {#snippet item2()}
-              <Button general onclick={() => dispatch("importRules")}>
-                <div class="dd-icon"><ImportList size={20} /></div>
-                <div class="dd-label">{t("Import Rule List")}</div>
-              </Button>
-            {/snippet}
-            {#snippet item3()}
-              <Button general disabled={group_index === 0} onclick={() => moveGroupUp(group_index)}>
-                <div class="dd-icon"><MoveUp size={20} /></div>
-                <div class="dd-label">{t("Move Up")}</div>
-              </Button>
-            {/snippet}
-            {#snippet item4()}
-              <Button
-                general
-                disabled={group_index === total_groups - 1}
-                onclick={() => moveGroupDown(group_index)}
-              >
-                <div class="dd-icon"><MoveDown size={20} /></div>
-                <div class="dd-label">{t("Move Down")}</div>
-              </Button>
-            {/snippet}
-            {#snippet item5()}
-              <Button general onclick={() => deleteGroup(group_index)}>
-                <div class="dd-icon"><Delete size={20} /></div>
-                <div class="dd-label">{t("Delete Group")}</div>
-              </Button>
-            {/snippet}
-          </DropdownMenu>
-        {/if}
 
-        <Tooltip value={t(open ? "Collapse Group" : "Expand Group")}>
-          <Collapsible.Trigger>
-            {#if open}
-              <GroupCollapse size={20} />
-            {:else}
-              <GroupExpand size={20} />
-            {/if}
-          </Collapsible.Trigger>
-        </Tooltip>
+          <Tooltip value={t(open ? "Collapse Group" : "Expand Group")}>
+            <Collapsible.Trigger>
+              {#if open}
+                <GroupCollapse size={20} />
+              {:else}
+                <GroupExpand size={20} />
+              {/if}
+            </Collapsible.Trigger>
+          </Tooltip>
+        {:else}
+          <div class="mobile-bottom-actions">
+            <DropdownMenu>
+              {#snippet trigger()}
+                <Dots size={20} />
+              {/snippet}
+              {#snippet item1()}
+                <Button
+                  general
+                  onclick={() => {
+                    addRuleToGroup(group_index, defaultRule(), true);
+                    open = true;
+                  }}
+                >
+                  <div class="dd-icon"><Add size={20} /></div>
+                  <div class="dd-label">{t("Add Rule")}</div>
+                </Button>
+              {/snippet}
+              {#snippet item2()}
+                <Button general onclick={() => dispatch("importRules")}>
+                  <div class="dd-icon"><ImportList size={20} /></div>
+                  <div class="dd-label">{t("Import Rule List")}</div>
+                </Button>
+              {/snippet}
+              {#snippet item3()}
+                <Button
+                  general
+                  disabled={group_index === 0}
+                  onclick={() => moveGroupUp(group_index)}
+                >
+                  <div class="dd-icon"><MoveUp size={20} /></div>
+                  <div class="dd-label">{t("Move Up")}</div>
+                </Button>
+              {/snippet}
+              {#snippet item4()}
+                <Button
+                  general
+                  disabled={group_index === total_groups - 1}
+                  onclick={() => moveGroupDown(group_index)}
+                >
+                  <div class="dd-icon"><MoveDown size={20} /></div>
+                  <div class="dd-label">{t("Move Down")}</div>
+                </Button>
+              {/snippet}
+              {#snippet item5()}
+                <Button general onclick={() => deleteGroup(group_index)}>
+                  <div class="dd-icon"><Delete size={20} /></div>
+                  <div class="dd-label">{t("Delete Group")}</div>
+                </Button>
+              {/snippet}
+            </DropdownMenu>
+
+            <Tooltip value={t(open ? "Collapse Group" : "Expand Group")}>
+              <Collapsible.Trigger>
+                {#if open}
+                  <GroupCollapse size={20} />
+                {:else}
+                  <GroupExpand size={20} />
+                {/if}
+              </Collapsible.Trigger>
+            </Tooltip>
+          </div>
+        {/if}
       </div>
     </div>
 
@@ -348,6 +366,35 @@
                 </Tooltip>
               {/if}
             </div>
+          </div>
+        {/if}
+        {#if !is_desktop && displayedRulesCount > 0}
+          <div class="mobile-bulk-actions-row">
+            <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
+              <Switch
+                class="master-switch"
+                checked={group.rules.every((r) => r.enable)}
+                mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
+                onCheckedChange={(v) => {
+                  const allOn = group.rules.every((r) => r.enable);
+                  const mixed = group.rules.some((r) => r.enable) && !allOn;
+                  const newState = mixed ? true : !allOn;
+
+                  group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                }}
+              />
+            </div>
+            <Button
+              small
+              class="delete-all-rules-btn"
+              onclick={() => {
+                if (confirm(t("Delete all rules in this group?"))) {
+                  group.rules = [];
+                }
+              }}
+            >
+              <Delete size={20} />
+            </Button>
           </div>
         {/if}
         <div class="group-rules">
@@ -430,6 +477,8 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
+    flex: 1; /* Allow it to grow */
+    min-width: 0; /* Enable flex shrinkage */
   }
 
   .group-color {
@@ -479,6 +528,7 @@
       position: relative;
       top: 0.1rem;
       margin-left: 0.4rem;
+      width: 100%; /* Take full width of parent */
     }
 
     &:focus-visible {
@@ -573,6 +623,7 @@
       flex-direction: column;
       align-items: start;
       justify-content: center;
+      padding-right: 4rem; /* Reserve space for absolute toggle */
     }
 
     .group-left {
@@ -580,8 +631,8 @@
         width: 100%;
       }
       & input[type="text"] {
-        width: calc(100% - 2rem);
-        margin-left: 2.5rem;
+        width: 100%;
+        margin-left: 0rem;
       }
       & label {
         height: calc(100% + 1px);
@@ -597,9 +648,19 @@
 
     :global(.group-actions > *:nth-child(1)) {
       margin-right: auto;
-      width: 150px;
-      min-width: 140px;
-      flex: 1 1 auto;
+      width: auto;
+      max-width: 100%; /* Fill available space (already constrained by header padding) */
+      min-width: 0; /* Allow shrinking */
+      flex: 0 1 auto;
+    }
+
+    /* Enforce truncation on the trigger button */
+    :global(.group-actions > *:nth-child(1) [data-select-trigger]) {
+      max-width: 100%;
+    }
+
+    :global(.group-actions > *:nth-child(1) .selected) {
+      max-width: 100%;
     }
 
     :global(.group-actions > *:nth-child(3)) {
@@ -611,6 +672,32 @@
       & .group-rules-header-column {
         display: none;
       }
+    }
+
+    /* Mobile Absolute Positioning for Enable Switch */
+    :global(.group-enable-switch) {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 10;
+    }
+
+    :global(.mobile-bottom-actions) {
+      position: absolute;
+      bottom: 0.5rem;
+      right: 0rem;
+      display: flex;
+      gap: 0;
+      z-index: 10;
+    }
+
+    .mobile-bulk-actions-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 0.35rem;
+      border-bottom: 1px solid var(--bg-light-extra);
     }
   }
 
@@ -637,6 +724,8 @@
   /* Delete All Rules Button - Red variant */
   :global(.delete-all-rules-btn) {
     color: var(--red) !important;
+    position: relative;
+    top: -1px;
   }
 
   :global(.delete-all-rules-btn:hover) {
