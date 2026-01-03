@@ -80,6 +80,11 @@
 
   let filteredRuleIndices: number[] | null = $state(null);
   let displayedRulesCount = $state(0);
+  let hasBeenOpened = $state(open);
+
+  $effect(() => {
+    if (open) hasBeenOpened = true;
+  });
 
   $effect(() => {
     if (searchActive && Array.isArray(visibleRuleIndices)) {
@@ -326,111 +331,114 @@
     </div>
 
     <Collapsible.Content>
-      <div transition:slide>
-        {#if displayedRulesCount > 0}
-          <div class="group-rules-header">
-            <div class="group-rules-header-column total">
-              #{displayedRulesCount}
-            </div>
-            <div class="group-rules-header-column">{t("Name")}</div>
-            <div class="group-rules-header-column">{t("Type")}</div>
-            <div class="group-rules-header-column">{t("Pattern")}</div>
-            <div class="group-rules-header-column">
-              {#if displayedRulesCount > 0}
-                <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
-                  <Switch
-                    class="master-switch"
-                    checked={group.rules.every((r) => r.enable)}
-                    mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
-                    onCheckedChange={(v) => {
-                      const allOn = group.rules.every((r) => r.enable);
-                      const mixed = group.rules.some((r) => r.enable) && !allOn;
-                      const newState = mixed ? true : !allOn; // If mixed -> Turn ON. If all ON -> Turn OFF. If all OFF -> Turn ON.
+      {#if hasBeenOpened}
+        <div transition:slide>
+          {#if displayedRulesCount > 0}
+            <div class="group-rules-header">
+              <div class="group-rules-header-column total">
+                #{displayedRulesCount}
+              </div>
+              <div class="group-rules-header-column">{t("Name")}</div>
+              <div class="group-rules-header-column">{t("Type")}</div>
+              <div class="group-rules-header-column">{t("Pattern")}</div>
+              <div class="group-rules-header-column">
+                {#if displayedRulesCount > 0}
+                  <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
+                    <Switch
+                      class="master-switch"
+                      checked={group.rules.every((r) => r.enable)}
+                      mixed={group.rules.some((r) => r.enable) &&
+                        !group.rules.every((r) => r.enable)}
+                      onCheckedChange={(v) => {
+                        const allOn = group.rules.every((r) => r.enable);
+                        const mixed = group.rules.some((r) => r.enable) && !allOn;
+                        const newState = mixed ? true : !allOn; // If mixed -> Turn ON. If all ON -> Turn OFF. If all OFF -> Turn ON.
 
-                      group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
-                    }}
-                  />
-                </div>
-                <Tooltip value={t("Delete All Rules")}>
-                  <Button
-                    small
-                    class="delete-all-rules-btn"
-                    onclick={() => {
-                      if (confirm(t("Delete all rules in this group?"))) {
-                        group.rules = [];
-                      }
-                    }}
-                  >
-                    <Delete size={20} />
-                  </Button>
-                </Tooltip>
-              {/if}
+                        group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                      }}
+                    />
+                  </div>
+                  <Tooltip value={t("Delete All Rules")}>
+                    <Button
+                      small
+                      class="delete-all-rules-btn"
+                      onclick={() => {
+                        if (confirm(t("Delete all rules in this group?"))) {
+                          group.rules = [];
+                        }
+                      }}
+                    >
+                      <Delete size={20} />
+                    </Button>
+                  </Tooltip>
+                {/if}
+              </div>
             </div>
-          </div>
-        {/if}
-        {#if !is_desktop && displayedRulesCount > 0}
-          <div class="mobile-bulk-actions-row">
-            <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
-              <Switch
-                class="master-switch"
-                checked={group.rules.every((r) => r.enable)}
-                mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
-                onCheckedChange={(v) => {
-                  const allOn = group.rules.every((r) => r.enable);
-                  const mixed = group.rules.some((r) => r.enable) && !allOn;
-                  const newState = mixed ? true : !allOn;
+          {/if}
+          {#if !is_desktop && displayedRulesCount > 0}
+            <div class="mobile-bulk-actions-row">
+              <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
+                <Switch
+                  class="master-switch"
+                  checked={group.rules.every((r) => r.enable)}
+                  mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
+                  onCheckedChange={(v) => {
+                    const allOn = group.rules.every((r) => r.enable);
+                    const mixed = group.rules.some((r) => r.enable) && !allOn;
+                    const newState = mixed ? true : !allOn;
 
-                  group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                    group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                  }}
+                />
+              </div>
+              <Button
+                small
+                class="delete-all-rules-btn"
+                onclick={() => {
+                  if (confirm(t("Delete all rules in this group?"))) {
+                    group.rules = [];
+                  }
                 }}
-              />
+              >
+                <Delete size={20} />
+              </Button>
             </div>
-            <Button
-              small
-              class="delete-all-rules-btn"
-              onclick={() => {
-                if (confirm(t("Delete all rules in this group?"))) {
-                  group.rules = [];
-                }
-              }}
-            >
-              <Delete size={20} />
-            </Button>
-          </div>
-        {/if}
-        <div class="group-rules">
-          {#if Array.isArray(filteredRuleIndices)}
-            {#each filteredRuleIndices as rule_index, visible_index (group.rules[rule_index].id)}
-              <RuleRow
-                key={group.rules[rule_index].id}
-                bind:rule={group.rules[rule_index]}
-                {rule_index}
-                {group_index}
-                rule_id={group.rules[rule_index].id}
-                group_id={group.id}
-                onChangeIndex={changeRuleIndex}
-                onDelete={deleteRuleFromGroup}
-                style={visible_index % 2 ? "" : "background-color: var(--bg-light)"}
-              />
-            {/each}
-          {:else}
-            <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
-              {#each group.rules.slice(0, showed_limit) as rule, rule_index (rule.id)}
+          {/if}
+          <div class="group-rules">
+            {#if Array.isArray(filteredRuleIndices)}
+              {#each filteredRuleIndices as rule_index, visible_index (group.rules[rule_index].id)}
                 <RuleRow
-                  key={rule.id}
+                  key={group.rules[rule_index].id}
                   bind:rule={group.rules[rule_index]}
                   {rule_index}
                   {group_index}
-                  rule_id={rule.id}
+                  rule_id={group.rules[rule_index].id}
                   group_id={group.id}
                   onChangeIndex={changeRuleIndex}
                   onDelete={deleteRuleFromGroup}
-                  style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+                  style={visible_index % 2 ? "" : "background-color: var(--bg-light)"}
                 />
               {/each}
-            </InfiniteLoader>
-          {/if}
+            {:else}
+              <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+                {#each group.rules.slice(0, showed_limit) as rule, rule_index (rule.id)}
+                  <RuleRow
+                    key={rule.id}
+                    bind:rule={group.rules[rule_index]}
+                    {rule_index}
+                    {group_index}
+                    rule_id={rule.id}
+                    group_id={group.id}
+                    onChangeIndex={changeRuleIndex}
+                    onDelete={deleteRuleFromGroup}
+                    style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
+                  />
+                {/each}
+              </InfiniteLoader>
+            {/if}
+          </div>
         </div>
-      </div>
+      {/if}
     </Collapsible.Content>
   </Collapsible.Root>
 </div>
