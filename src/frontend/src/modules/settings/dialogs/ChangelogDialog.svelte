@@ -16,11 +16,8 @@
   let content = $state("");
   let error = $state(false);
 
-  // Production URL (Future)
-  // const REPO_URL = "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/changelog/CHANGELOG.md";
-
-  // Test URL (Current - reads README from develop/root)
-  const REPO_URL = "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/README.md";
+  const REPO_URL =
+    "https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/changelog/CHANGELOG.md";
 
   async function loadChangelog() {
     loading = true;
@@ -220,6 +217,24 @@
     padding: 1.5rem;
     overflow-y: auto;
     color: var(--text);
+  }
+
+  /* Custom Scrollbar */
+  .dialog-body::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .dialog-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .dialog-body::-webkit-scrollbar-thumb {
+    background-color: var(--bg-light-extra);
+    border-radius: 3px;
+  }
+
+  .dialog-body::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent-dim);
   }
 
   /* Changelog Typography */
