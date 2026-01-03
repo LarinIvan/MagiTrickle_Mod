@@ -9,7 +9,7 @@
     "Log Level Description": "Verbosity level of system logs.\nUse Debug for troubleshooting.",
     "Restart Service Description": "Restart the MagiTrickle background process.",
     "Debug Console": "Debug Console",
-    "Debug Console Description": "Open floating window with real-time logs.",
+    "Debug Console Description": "Open window with real-time logs.",
     "Open Console": "Open",
     "Close Console": "Close",
     "Restarting...": "Restarting...",

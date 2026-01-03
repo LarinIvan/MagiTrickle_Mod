@@ -1,6 +1,15 @@
 <script lang="ts">
   import { consoleStore } from "../../data/console.svelte";
-  import { X, Minus, Square, Terminal, Copy } from "lucide-svelte";
+  import {
+    X,
+    Minus,
+    Square,
+    Terminal,
+    Copy,
+    ArrowUpLeftFromCircle,
+    ChevronsUp,
+    ChevronsDown,
+  } from "lucide-svelte";
   import { onMount, tick } from "svelte";
 
   let windowEl = $state<HTMLElement>();
@@ -9,6 +18,11 @@
   let isResizing = false;
   let dragOffset = { x: 0, y: 0 };
   let startDim = { w: 0, h: 0, x: 0, y: 0 };
+
+  // Mobile State
+  let innerWidth = $state(typeof window !== "undefined" ? window.innerWidth : 1000);
+  let isMobile = $derived(innerWidth <= 700);
+  let mobileFull = $state(false); // false = 50%, true = 100%
 
   // Scroll to bottom on new logs
   $effect(() => {
@@ -25,6 +39,7 @@
   });
 
   function startDrag(e: PointerEvent) {
+    if (isMobile) return; // No drag on mobile
     const target = e.target as Element;
     // Explicitly ignore buttons and controls to prevent drag start
     if (target.closest && (target.closest(".window-controls") || target.closest("button"))) return;
@@ -55,6 +70,7 @@
   }
 
   function startResize(e: PointerEvent) {
+    if (isMobile) return;
     isResizing = true;
     startDim = { w: consoleStore.width, h: consoleStore.height, x: e.clientX, y: e.clientY };
     e.stopPropagation(); // prevent drag
@@ -98,27 +114,85 @@
     }
   }
 
-  // Minimize logic: we now use "collapsed" style window
-  // "isMinimized" acts as "isCollapsed"
-  // When isMinimized is true, we hide body and handle, reduce height to auto
+  // Helper for Mobile Logic
+  function handleMobileExpand() {
+    if (consoleStore.isMinimized) {
+      // Minimized -> Half
+      consoleStore.isMinimized = false;
+      mobileFull = false;
+    } else if (!mobileFull) {
+      // Half -> Full
+      mobileFull = true;
+    } else {
+      // Full -> Half
+      mobileFull = false;
+    }
+  }
+
+  // Action to prevent background scroll on the window container
+  function preventTouch(node: HTMLElement) {
+    const handler = (e: TouchEvent) => {
+      // Prevent default browser scroll processing
+      e.preventDefault();
+    };
+    // Non-passive is required to use preventDefault
+    node.addEventListener("touchmove", handler, { passive: false });
+    return {
+      destroy() {
+        node.removeEventListener("touchmove", handler);
+      },
+    };
+  }
+
+  // Action to allow internal scroll but contain it
+  function isolateScroll(node: HTMLElement) {
+    const handler = (e: TouchEvent) => {
+      // If content is scrollable
+      if (node.scrollHeight > node.clientHeight) {
+        // Stop propagation so the parent (preventTouch) doesn't see it
+        e.stopPropagation();
+      } else {
+        // If not scrollable, prevent default to stop background scroll
+        e.preventDefault();
+      }
+    };
+    node.addEventListener("touchmove", handler, { passive: false });
+    return {
+      destroy() {
+        node.removeEventListener("touchmove", handler);
+      },
+    };
+  }
 </script>
 
-<svelte:window onpointerup={stopDrag} />
+<svelte:window onpointerup={stopDrag} onresize={() => (innerWidth = window.innerWidth)} />
 
 {#if consoleStore.isOpen}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="console-window"
     class:collapsed={consoleStore.isMinimized}
-    style:left="{consoleStore.x}px"
-    style:top="{consoleStore.y}px"
-    style:width="{consoleStore.width}px"
-    style:height={consoleStore.isMinimized ? "auto" : `${consoleStore.height}px`}
+    class:mobile={isMobile}
+    style:left={isMobile ? "0" : `${consoleStore.x}px`}
+    style:top={isMobile ? "auto" : `${consoleStore.y}px`}
+    style:width={isMobile ? "100%" : `${consoleStore.width}px`}
+    style:height={isMobile
+      ? consoleStore.isMinimized
+        ? "auto"
+        : mobileFull
+          ? "calc(100vh - 65px)"
+          : "50vh"
+      : consoleStore.isMinimized
+        ? "auto"
+        : `${consoleStore.height}px`}
+    style:bottom={isMobile ? "60px" : "auto"}
     bind:this={windowEl}
     onpointermove={onDrag}
     onpointerup={stopDrag}
     onpointerdown={(e) => e.stopPropagation()}
     onmousedown={(e) => e.stopPropagation()}
+    onwheel={(e) => e.stopPropagation()}
+    use:preventTouch
   >
     <div class="window-header" onpointerdown={startDrag}>
       <div class="window-title">
@@ -149,20 +223,56 @@
         >
           <span class="text-xs uppercase font-bold text-gray-400 hover:text-white">CLR</span>
         </button>
-        <button
-          onclick={(e) => {
-            e.stopPropagation();
-            consoleStore.toggleMinimize();
-          }}
-          class="control-btn"
-          title={consoleStore.isMinimized ? "Expand" : "Collapse"}
-        >
-          {#if consoleStore.isMinimized}
-            <Square size={14} />
-          {:else}
-            <Minus size={14} />
+
+        {#if isMobile}
+          <!-- Mobile Controls -->
+          {#if !consoleStore.isMinimized}
+            <button
+              onclick={(e) => {
+                e.stopPropagation();
+                consoleStore.isMinimized = true;
+              }}
+              class="control-btn"
+              title="Collapse"
+            >
+              <Minus size={14} />
+            </button>
           {/if}
-        </button>
+
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              handleMobileExpand();
+            }}
+            class="control-btn"
+            title={consoleStore.isMinimized ? "Open" : mobileFull ? "Restore" : "Full Screen"}
+          >
+            {#if consoleStore.isMinimized}
+              <ChevronsUp size={14} />
+            {:else if mobileFull}
+              <ChevronsDown size={14} />
+            {:else}
+              <ChevronsUp size={14} />
+            {/if}
+          </button>
+        {:else}
+          <!-- Desktop Controls -->
+          <button
+            onclick={(e) => {
+              e.stopPropagation();
+              consoleStore.toggleMinimize();
+            }}
+            class="control-btn"
+            title={consoleStore.isMinimized ? "Expand" : "Collapse"}
+          >
+            {#if consoleStore.isMinimized}
+              <Square size={14} />
+            {:else}
+              <Minus size={14} />
+            {/if}
+          </button>
+        {/if}
+
         <button
           onclick={(e) => {
             e.stopPropagation();
@@ -177,7 +287,7 @@
     </div>
 
     {#if !consoleStore.isMinimized}
-      <div class="window-body" bind:this={logContentEl}>
+      <div class="window-body" bind:this={logContentEl} use:isolateScroll>
         {#each consoleStore.logs as log (log.id)}
           <div class="log-line">
             <span class="log-time">{log.time}</span>
@@ -281,13 +391,24 @@
     transition: all 0.15s;
     -webkit-app-region: no-drag; /* For Tauri/Electron context if compatible, ignored in web */
   }
-  .control-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+
+  /* Only apply hover on devices that support it to avoid sticky states on mobile */
+  @media (hover: hover) {
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+    .control-btn.close:hover {
+      background: #ef4444;
+      color: white;
+    }
   }
-  .control-btn.close:hover {
-    background: #ef4444;
+
+  /* Active state for immediate feedback on both desktop and mobile */
+  .control-btn:active {
+    background: rgba(255, 255, 255, 0.2);
     color: white;
+    transform: scale(0.95);
   }
 
   .window-body {
@@ -303,6 +424,7 @@
     cursor: text;
     scrollbar-width: thin;
     scrollbar-color: #333 #000;
+    overscroll-behavior: contain; /* Prevent scroll chaining */
   }
 
   .window-body::-webkit-scrollbar {
@@ -385,5 +507,30 @@
   }
   .resize-handle:hover {
     opacity: 1;
+  }
+
+  /* Mobile Overrides */
+  .console-window.mobile {
+    border-radius: 12px 12px 0 0 !important;
+    border: 1px solid #333;
+    border-bottom: none;
+    transition: height 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+    /* CRITICAL: Prevent browser scroll handling on the container itself */
+    touch-action: none;
+    /* Fix width overflow issues */
+    width: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    box-sizing: border-box; /* Ensure border is inside width */
+  }
+
+  /* Make sure the body allows scrolling */
+  .console-window.mobile .window-body {
+    touch-action: pan-y;
+  }
+
+  .console-window.mobile.collapsed {
+    border-bottom: 1px solid #333;
+    border-radius: 6px 6px 0 0 !important;
   }
 </style>

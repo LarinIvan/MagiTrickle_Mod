@@ -86,32 +86,32 @@
       <div class="setting-group-content">
         <!-- Wildcard Toggle -->
         <div class="setting-row">
-          <div class="setting-info">
+          <div class="setting-title-row">
             <h3>{t("settings.enable_wildcard")}</h3>
-            <p>{t("settings.enable_wildcard_desc")}</p>
+            <div class="setting-control switch-control">
+              <Switch
+                checked={settings.config?.enable_wildcard ?? true}
+                onCheckedChange={handleWildcardChange}
+              />
+            </div>
           </div>
-          <div class="setting-control switch-control">
-            <Switch
-              checked={settings.config?.enable_wildcard ?? true}
-              onCheckedChange={handleWildcardChange}
-            />
-          </div>
+          <p class="setting-description">{t("settings.enable_wildcard_desc")}</p>
         </div>
 
         <div class="setting-separator"></div>
 
         <!-- Regexp Toggle -->
         <div class="setting-row">
-          <div class="setting-info">
+          <div class="setting-title-row">
             <h3>{t("Use Regexp")}</h3>
-            <p>{t("Use Regexp Description")}</p>
+            <div class="setting-control switch-control">
+              <Switch
+                checked={settings.config?.enable_regexp ?? false}
+                onCheckedChange={handleRegexpChange}
+              />
+            </div>
           </div>
-          <div class="setting-control switch-control">
-            <Switch
-              checked={settings.config?.enable_regexp ?? false}
-              onCheckedChange={handleRegexpChange}
-            />
-          </div>
+          <p class="setting-description">{t("Use Regexp Description")}</p>
         </div>
       </div>
     </div>
@@ -121,15 +121,19 @@
       <div class="setting-icon">
         <Network size={24} />
       </div>
-      <div class="setting-info">
-        <h3>{t("Show IPs")}</h3>
-        <p>{t("Show IPs Description")}</p>
-      </div>
-      <div class="setting-control switch-control">
-        <Switch
-          checked={settings.config?.show_interface_ips ?? true}
-          onCheckedChange={handleShowIPsChange}
-        />
+      <div class="setting-group-content">
+        <div class="setting-row">
+          <div class="setting-title-row">
+            <h3>{t("Show IPs")}</h3>
+            <div class="setting-control switch-control">
+              <Switch
+                checked={settings.config?.show_interface_ips ?? true}
+                onCheckedChange={handleShowIPsChange}
+              />
+            </div>
+          </div>
+          <p class="setting-description">{t("Show IPs Description")}</p>
+        </div>
       </div>
     </div>
 
@@ -158,14 +162,14 @@
 
         <!-- Auto Check Updates Toggle -->
         <div class="setting-row">
-          <div class="setting-info">
+          <div class="setting-title-row">
             <h3>{t("Notify about new version")}</h3>
-          </div>
-          <div class="setting-control switch-control">
-            <Switch
-              checked={settings.config?.auto_check_updates ?? false}
-              onCheckedChange={handleAutoCheckChange}
-            />
+            <div class="setting-control switch-control">
+              <Switch
+                checked={settings.config?.auto_check_updates ?? false}
+                onCheckedChange={handleAutoCheckChange}
+              />
+            </div>
           </div>
         </div>
 
@@ -173,10 +177,11 @@
 
         <!-- Actions -->
         <div class="setting-row">
-          <div class="setting-control flex gap-2">
+          <div class="mobile-actions-row">
             <Button class="check-btn" onclick={() => updater.check()} disabled={updater.checking}>
               {updater.checking ? t("Checking...") : t("Check for Updates")}
             </Button>
+            <!-- TEMP: Reverted -->
             {#if updater.newVersion}
               <Button
                 class="update-btn"
@@ -200,34 +205,37 @@
       <div class="setting-group-content">
         <!-- Debug Console -->
         <div class="setting-row">
-          <div class="setting-info">
+          <div class="setting-title-row stack-mobile">
             <h3>{t("Debug Console")}</h3>
-            <p>{t("Debug Console Description")}</p>
+            <div class="setting-control">
+              <Button
+                onclick={() => setTimeout(() => consoleStore.toggle(), 0)}
+                class="console-btn"
+              >
+                {consoleStore.isOpen ? t("Close Console") : t("Open Console")}
+              </Button>
+            </div>
           </div>
-          <div class="setting-control">
-            <Button onclick={() => setTimeout(() => consoleStore.toggle(), 0)} class="console-btn">
-              {consoleStore.isOpen ? t("Close Console") : t("Open Console")}
-            </Button>
-          </div>
+          <p class="setting-description">{t("Debug Console Description")}</p>
         </div>
 
         <div class="setting-separator"></div>
 
         <!-- Log Level -->
         <div class="setting-row">
-          <div class="setting-info">
+          <div class="setting-title-row stack-mobile">
             <h3>{t("Log Level")}</h3>
-            <p>{t("Log Level Description")}</p>
-          </div>
-          <div class="setting-control">
-            <div class="select-wrapper-dark">
-              <Select
-                options={logLevels.map((l) => ({ value: l.value, label: t(l.label) }))}
-                selected={settings.config?.log_level || "info"}
-                onValueChange={handleLogLevelChange}
-              />
+            <div class="setting-control">
+              <div class="select-wrapper-dark">
+                <Select
+                  options={logLevels.map((l) => ({ value: l.value, label: t(l.label) }))}
+                  selected={settings.config?.log_level || "info"}
+                  onValueChange={handleLogLevelChange}
+                />
+              </div>
             </div>
           </div>
+          <p class="setting-description">{t("Log Level Description")}</p>
         </div>
       </div>
     </div>
@@ -239,14 +247,18 @@
           <RefreshCw size={24} />
         </div>
       </div>
-      <div class="setting-info">
-        <h3 class="danger-text">{t("Restart Service")}</h3>
-        <p>{t("Restart Service Description")}</p>
-      </div>
-      <div class="setting-control">
-        <Button class="restart-btn" onclick={handleRestart} disabled={isRestarting}>
-          {isRestarting ? t("Restarting...") : t("Restart Service")}
-        </Button>
+      <div class="setting-group-content">
+        <div class="setting-row">
+          <div class="setting-title-row stack-mobile">
+            <h3 class="danger-text">{t("Restart Service")}</h3>
+            <div class="setting-control">
+              <Button class="restart-btn" onclick={handleRestart} disabled={isRestarting}>
+                {isRestarting ? t("Restarting...") : t("Restart Service")}
+              </Button>
+            </div>
+          </div>
+          <p class="setting-description">{t("Restart Service Description")}</p>
+        </div>
       </div>
     </div>
   </div>
@@ -254,7 +266,7 @@
 
 <style>
   .settings-container {
-    padding: 1.5rem;
+    padding: 0.5rem;
     max-width: 900px;
     margin: 0 auto;
     display: flex;
@@ -440,12 +452,6 @@
   .font-bold {
     font-weight: 700;
   }
-  .flex {
-    display: flex;
-  }
-  .gap-2 {
-    gap: 0.5rem;
-  }
 
   /* Danger Zone Styling */
   .danger-zone {
@@ -497,10 +503,22 @@
 
   .setting-row {
     display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 0.25rem;
+  }
+
+  .setting-title-row {
+    display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
     width: 100%;
+    gap: 1rem;
+  }
+
+  /* Force right alignment for controls */
+  .setting-title-row .setting-control {
+    margin-left: auto;
   }
 
   .setting-separator {
@@ -509,33 +527,130 @@
     width: 100%;
   }
 
+  /* Description text */
+  .setting-description {
+    font-size: 0.95rem;
+    color: var(--text-2);
+    line-height: 1.5;
+    white-space: pre-line;
+    margin: 0;
+  }
+
+  /* Actions Row (Updates) - Desktop Default */
+  .mobile-actions-row {
+    display: flex;
+    gap: 0.5rem; /* Standard desktop gap */
+    width: 100%;
+  }
+
+  /* Mobile Adjustments */
   @media (max-width: 600px) {
     .setting-card {
-      grid-template-columns: 1fr auto;
-      grid-template-areas:
-        "icon control"
-        "info info";
+      /* Stack icon on top, content below */
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem; /* Standard small gap */
+      align-items: stretch; /* FIX: Stretch content to full width */
+      padding: 1rem;
     }
 
     .setting-card.grouped {
-      flex-direction: column;
-      gap: 1rem;
+      flex-direction: column; /* Stack grouped items */
+      gap: 1rem; /* Gap between separated groups */
+      align-items: stretch !important; /* FIX: Override desktop flex-start to ensure full width */
     }
-    .setting-row {
-      flex-direction: column;
-      align-items: flex-start;
+
+    /* Reduce gap between internal items on mobile */
+    .setting-group-content {
+      gap: 1.25rem !important; /* Clear separation between items */
+    }
+
+    /* Hide separators on mobile to save space */
+    .setting-separator {
+      display: none !important;
     }
 
     .setting-icon {
-      grid-area: icon;
-      width: 3rem;
-      height: 3rem;
+      /* Half size (3.5rem / 2 = 1.75rem) */
+      width: 1.75rem;
+      height: 1.75rem;
+      flex-shrink: 0;
+      border-radius: 0.4rem;
     }
-    .setting-control {
-      grid-area: control;
+
+    /* Adjust icon SVG size */
+    .setting-icon :global(svg) {
+      width: 1.25rem;
+      height: 1.25rem;
     }
-    .setting-info {
-      grid-area: info;
+
+    /* Standardize all headers to match the tight "Console" look */
+    .setting-card h3 {
+      margin: 0 !important;
+      line-height: 1.2 !important;
+      font-size: 1.1rem !important; /* Slightly larger/standardized */
+    }
+
+    /* 1. Fix Toggles: Ensure separate rows align properly */
+    .setting-title-row {
+      width: 100% !important; /* Reinforce */
+    }
+    /* Only apply right-alignment to rows that are NOT stacked */
+    .setting-title-row:not(.stack-mobile) {
+      justify-content: space-between !important;
+      align-items: center !important;
+    }
+
+    /* 2. Stacked Mobile Controls (Console, Log Level, Restart) */
+    .setting-title-row.stack-mobile {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem; /* Standard small gap */
+    }
+    .setting-title-row.stack-mobile .setting-control {
+      width: 100%;
+      margin-left: 0;
+      display: block; /* Remove flexrow constraint */
+    }
+
+    /* 3. Universal Button Expansion in Stacked/Mobile Contexts */
+    /* Target standard buttons in stacked rows OR special action rows */
+    .setting-title-row.stack-mobile :global(button),
+    .mobile-actions-row :global(button) {
+      width: 100% !important;
+      max-width: none !important;
+      min-width: 0 !important;
+      display: flex !important; /* Override inline-flex */
+      justify-content: center !important;
+    }
+
+    /* 4. Select Dropdown Expansion */
+    .setting-title-row.stack-mobile .select-wrapper-dark {
+      display: block;
+      width: 100% !important;
+    }
+    .setting-title-row.stack-mobile :global([data-select-trigger]) {
+      display: flex !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+      max-width: none !important;
+    }
+    .setting-title-row.stack-mobile .select-wrapper-dark :global(.select-wrap) {
+      width: 100% !important;
+      max-width: none !important;
+      display: block !important;
+    }
+    .setting-title-row.stack-mobile .select-wrapper-dark :global(.selected) {
+      width: 100% !important;
+      justify-content: space-between !important;
+      display: flex !important;
+    }
+
+    /* Actions Row Stacking (Updates) - Mobile Override */
+    .mobile-actions-row {
+      flex-direction: column;
+      align-items: stretch !important;
+      gap: 0.5rem;
     }
   }
 </style>

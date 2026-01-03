@@ -71,7 +71,7 @@
   "Log Level Description": "Уровень детализации системных логов.\nИспользуйте Debug для отладки.",
   "Restart Service Description": "Перезапуск фонового процесса MagiTrickle.",
   "Debug Console": "Отладочная консоль",
-  "Debug Console Description": "Открыть плавающее окно с логами в реальном времени.",
+  "Debug Console Description": "Открыть окно с логами в реальном времени.",
   "Open Console": "Открыть",
   "Close Console": "Закрыть",
   "Restarting...": "Перезапуск...",
