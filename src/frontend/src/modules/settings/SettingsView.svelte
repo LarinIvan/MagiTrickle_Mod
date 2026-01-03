@@ -16,8 +16,10 @@
     Network,
     ArrowUpCircle,
   } from "../../components/ui/icons";
+  import ChangelogDialog from "./dialogs/ChangelogDialog.svelte";
 
   let isRestarting = $state(false);
+  let changelogOpen = $state(false);
 
   // Options for Log Level
   const logLevels = [
@@ -146,19 +148,35 @@
       <div class="setting-group-content">
         <!-- Version Info -->
         <div class="setting-row">
-          <div class="setting-info">
-            <h3>{t("Version & Updates")}</h3>
-            <p>
-              {t("Current Version")}:
-              <span class="font-bold">{import.meta.env.VITE_PKG_VERSION || "0.0.0"}</span>
-              {#if updater.newVersion}
-                <br /><span class="text-green-400"
-                  >{t("New version available:")} {updater.newVersion}</span
-                >
-              {/if}
-            </p>
+          <div class="setting-title-row">
+            <div>
+              <h3>{t("Version & Updates")}</h3>
+              <div class="text-sm opacity-70 mt-1 version-display">
+                <div class="version-item">
+                  <span>{t("Current Version")}:</span>
+                  <span class="font-bold">{import.meta.env.VITE_PKG_VERSION || "0.0.0"}</span>
+                </div>
+                {#if updater.newVersion}
+                  <div class="version-item new-version text-green-400">
+                    <span>{t("New version available:")}</span>
+                    <span class="font-bold">{updater.newVersion}</span>
+                  </div>
+                {/if}
+              </div>
+            </div>
+            <div class="setting-control">
+              <Button
+                small
+                class={updater.newVersion ? "new-version-btn" : ""}
+                onclick={() => (changelogOpen = true)}
+              >
+                {t("What's New")}
+              </Button>
+            </div>
           </div>
         </div>
+
+        <ChangelogDialog bind:open={changelogOpen} />
 
         <!-- Auto Check Updates Toggle -->
         <div class="setting-row">
@@ -330,23 +348,27 @@
     color: var(--text-2);
   }
 
-  .setting-info h3 {
-    font-size: 1.2rem; /* Larger title */
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-  }
-
-  .setting-info p {
-    font-size: 0.95rem; /* Larger description */
-    color: var(--text-2);
-    line-height: 1.5;
-    white-space: pre-line;
-  }
-
   .setting-control {
     display: flex;
     align-items: center;
+  }
+
+  .version-item {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5ch;
+  }
+
+  .new-version {
+    margin-top: 0.25rem;
+  }
+
+  @media (max-width: 600px) {
+    .version-item {
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 0.25rem;
+    }
   }
 
   /* --- Component Overrides --- */
@@ -419,6 +441,16 @@
   :global(button.check-btn:hover) {
     background-color: var(--bg-light-extra) !important;
     border-color: var(--accent) !important;
+  }
+
+  :global(.new-version-btn) {
+    background-color: var(--orange) !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+
+  :global(.new-version-btn:hover) {
+    filter: brightness(1.1);
   }
 
   /* Update Button Styling (Green, High Contrast) */

@@ -123,6 +123,11 @@
   "Failed to check for updates": "Не удалось проверить обновления",
   "Update started. The service will restart shortly...": "Обновление начато. Сервис будет перезагружен...",
   "Failed to start update": "Не удалось запустить обновление",
+  "What's new?": "Что нового?",
+  "Loading changelog...": "Загрузка списка изменений...",
+  "Failed to load changelog": "Не удалось загрузить список изменений",
+  "Retry": "Повторить",
+  "What's New": "Что нового",
   "settings.advanced_engines": "Расширенные движки поиска",
   "settings.enable_wildcard": "Использовать Wildcard",
   "settings.enable_wildcard_desc": "Поддержка шаблонов с символами * и ?"
