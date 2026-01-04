@@ -170,7 +170,7 @@ func (tm *TrafficManager) AddDynamicIPv6(groupID intID.ID, ifaceName string, sub
 }
 
 // UpdateGroupRules recalculates static rules for a group on a specific interface
-func (tm *TrafficManager) UpdateGroupRules(groupID intID.ID, ifaceName string, v4Subnets []netfilterTools.IPv4Subnet, v6Subnets []netfilterTools.IPv6Subnet) error {
+func (tm *TrafficManager) UpdateGroupRules(groupID intID.ID, ifaceName string, v4Subnets map[netfilterTools.IPv4Subnet]bool, v6Subnets map[netfilterTools.IPv6Subnet]bool) error {
 	im, err := tm.GetInterfaceManager(ifaceName)
 	if err != nil {
 		return err
@@ -319,7 +319,7 @@ func (im *InterfaceManager) garbageCollector() {
 	}
 }
 
-func (im *InterfaceManager) SyncGroup(groupID intID.ID, cv4 []netfilterTools.IPv4Subnet, cv6 []netfilterTools.IPv6Subnet) error {
+func (im *InterfaceManager) SyncGroup(groupID intID.ID, cv4 map[netfilterTools.IPv4Subnet]bool, cv6 map[netfilterTools.IPv6Subnet]bool) error {
 	im.locker.Lock()
 	defer im.locker.Unlock()
 
@@ -330,14 +330,15 @@ func (im *InterfaceManager) SyncGroup(groupID intID.ID, cv4 []netfilterTools.IPv
 	// 1. Calculate the 'Before' state of the Union (all groups)
 	// (Existing logic kept)...
 
-	// Convert new lists to sets
-	newV4Set := make(map[netfilterTools.IPv4Subnet]bool)
-	for _, s := range cv4 {
-		newV4Set[s] = true
+	// Convert new lists to sets - REMOVED, passing maps directly
+	newV4Set := cv4
+	if newV4Set == nil {
+		newV4Set = make(map[netfilterTools.IPv4Subnet]bool)
 	}
-	newV6Set := make(map[netfilterTools.IPv6Subnet]bool)
-	for _, s := range cv6 {
-		newV6Set[s] = true
+
+	newV6Set := cv6
+	if newV6Set == nil {
+		newV6Set = make(map[netfilterTools.IPv6Subnet]bool)
 	}
 
 	// If transitioning from inactive to active, ensure resources are ready

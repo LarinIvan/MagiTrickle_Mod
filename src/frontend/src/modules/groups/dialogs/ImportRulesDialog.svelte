@@ -7,9 +7,11 @@
   import { defaultRule } from "../../../utils/defaults";
   import {
     isValidSubnet,
+    isValidSubnet6,
     isValidNamespace,
     isValidDomain,
     isValidWildcard,
+    isValidRegex,
     VALIDATOP_MAP,
   } from "../../../utils/rule-validators";
   import type { Rule } from "../../../types";
@@ -37,12 +39,14 @@
   function detectRuleType(pattern: string): keyof typeof VALIDATOP_MAP {
     const p = pattern.trim();
 
+    if (isValidSubnet6(p)) return "subnet6";
     if (isValidSubnet(p)) return "subnet";
-    if (p.startsWith(".") && isValidNamespace(p.slice(1))) return "namespace";
-    if (isValidDomain(p)) return "domain";
+    if (p.split('.').length >= 3 && isValidDomain(p)) return "domain";
+    if (isValidNamespace(p)) return "namespace";
+    if (isValidRegex(p)) return "regex";
     if (isValidWildcard(p)) return "wildcard";
 
-    return "regex";
+    return "domain";
   }
 
   function submit() {
