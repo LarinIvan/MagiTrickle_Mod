@@ -139,10 +139,11 @@ func (a *App) Restart() {
 		// 1. Sleep 2s to allow HTTP response to flush
 		// 2. Restart service (standard way)
 		// 3. Sleep 5s to allow restart to complete (or fail)
-		// 4. Loop 10 times: check if alive. If not, try to start again.
-		script := "sleep 2; /opt/etc/init.d/S99magitrickle restart; sleep 5; for i in $(seq 1 10); do if /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then break; fi; /opt/etc/init.d/S99magitrickle start; sleep 3; done"
+		// 4. Initial Loop (5 attempts): check if alive. If not, try to start again.
+		// 5. Stabilization Loop (30s): monitor if service crashes shortly after start. If dead, restart.
+		script := "sleep 2; /opt/etc/init.d/S99magitrickle restart; sleep 5; for i in $(seq 1 5); do if /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then break; fi; /opt/etc/init.d/S99magitrickle start; sleep 2; done; for i in $(seq 1 6); do sleep 5; if ! /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then /opt/etc/init.d/S99magitrickle start; fi; done"
 
-		log.Info().Str("script", script).Msg("Executing robust restart script")
+		log.Info().Str("script", script).Msg("Executing robust restart script with stabilization")
 
 		cmd := exec.Command("sh", "-c", script)
 		// Detach the process so it survives our death
@@ -159,8 +160,8 @@ func (a *App) Restart() {
 
 		// Give the script a moment to do its thing (like stopping us), otherwise exit forcefully after a delay
 		// The script should kill us via 'restart' or 'stop' command, but if it fails, we suicide to ensure we don't hang in a zombie state
-		// We wait long enough (15s) for the script to handle it first.
-		time.Sleep(15 * time.Second)
+		// We wait long enough (60s) for the script to handle it first (stabilization is ~30s + initial delays).
+		time.Sleep(60 * time.Second)
 		log.Info().Msg("Exiting process now (fallback)")
 		os.Exit(0)
 	}()
