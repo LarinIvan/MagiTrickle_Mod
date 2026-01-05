@@ -42,7 +42,7 @@
       setTimeout(() => {
         isRestarting = false;
         window.location.reload();
-      }, 3000);
+      }, 10000);
     }
   }
 

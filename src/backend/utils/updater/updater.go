@@ -89,8 +89,9 @@ func RunUpdate() error {
 	// Added extra sleeps and split commands for robustness.
 	// Note: We use 'opkg upgrade' specifically.
 	// Restart logic: sleep 3s, stop, update, sleep 5s, start.
-	// Then try 10 times to start if not running ("alive" check).
-	script := "sleep 3; /opt/etc/init.d/S99magitrickle stop; opkg update; opkg upgrade magitrickle_mod; sleep 5; /opt/etc/init.d/S99magitrickle start; for i in $(seq 1 10); do sleep 3; if /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then break; fi; /opt/etc/init.d/S99magitrickle start; done"
+	// Then try 5 times to start if not running ("alive" check).
+	// Then monitor for 30s (stabilization) to restart if it crashes.
+	script := "sleep 3; /opt/etc/init.d/S99magitrickle stop; opkg update; opkg upgrade magitrickle_mod; sleep 5; /opt/etc/init.d/S99magitrickle start; for i in $(seq 1 5); do sleep 2; if /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then break; fi; /opt/etc/init.d/S99magitrickle start; done; for i in $(seq 1 6); do sleep 5; if ! /opt/etc/init.d/S99magitrickle status | grep -q \"alive\"; then /opt/etc/init.d/S99magitrickle start; fi; done"
 
 	// We pass the entire command string to sh -c
 	fullScript := fmt.Sprintf("%s > /dev/null 2>&1 &", script)
