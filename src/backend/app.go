@@ -278,8 +278,6 @@ func (a *App) NetfilterDHook(action, table string) error {
 
 // --- Sync Logic ---
 
-// --- Sync Logic ---
-
 func (a *App) SyncAllRules() {
 	newTrie := trie.New()
 	var newRegexps []*RegexpRule

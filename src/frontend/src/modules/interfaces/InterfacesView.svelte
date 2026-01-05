@@ -327,9 +327,7 @@
     <SpeedtestModal
       interfaceId={showSpeedtest}
       interfaceName={selectedInterface
-        ? selectedInterface.alias
-          ? `${selectedInterface.alias} [${selectedInterface.id}]`
-          : selectedInterface.id
+        ? selectedInterface.alias || selectedInterface.id
         : showSpeedtest}
       interfaceIP={externalIPs[showSpeedtest] &&
       externalIPs[showSpeedtest] !== "loading" &&
@@ -587,7 +585,7 @@
     padding: 0 0.5rem;
   }
 
-  @media (max-width: 700px) {
+  @media (max-width: 950px) {
     .interfaces-view {
       padding: 0.5rem;
     }
@@ -782,33 +780,33 @@
   }
 
   /* Mobile Adjustments */
-  @media (max-width: 700px) {
+  @media (max-width: 950px) {
     .interface-main-content {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between; /* Distribute ID and IPs */
-      gap: 0.5rem; /* Gap between ID and IPs */
-      padding-right: 2.25rem; /* Space for absolute speedtest button */
+      flex-direction: column; /* Stack vertically */
+      align-items: flex-start; /* Align left */
+      justify-content: flex-start;
+      gap: 0.25rem; /* Tighter gap for stack */
+      padding-right: 2.25rem;
       width: 100%;
       box-sizing: border-box;
     }
 
     .interface-info-wrapper {
-      padding-left: 1rem;
+      padding-left: 1.5rem;
       padding-right: 0;
       box-sizing: border-box;
     }
 
     .status-wrapper {
       position: absolute;
-      top: 0.35rem; /* Better vertical alignment with ID */
+      top: 0.6rem; /* Align with input text roughly */
       left: 0;
       width: auto;
     }
 
     .interface-ip-group {
-      display: contents; /* Children participate in parent flex layout */
+      display: contents;
     }
 
     .interface-ip,
@@ -819,14 +817,17 @@
 
     .interface-id {
       margin: 0;
-      line-height: 1; /* Minimize height impact */
+      line-height: 1;
+      font-weight: bold; /* Make ID distinct if it was previously main */
     }
 
     .alias-input {
       width: 100%;
-      margin-top: 0.25rem;
-      order: 10; /* Force to last */
-      max-width: 100%; /* Prevent overflow */
+      margin-top: 0;
+      margin-bottom: 0.25rem;
+      order: -1; /* First */
+      max-width: 100%;
+      font-weight: 500;
     }
   }
 </style>
