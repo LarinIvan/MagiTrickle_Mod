@@ -9,8 +9,9 @@ import (
 type TrieNode struct {
 	children map[string]*TrieNode
 	// data holds the arbitrary data associated with the domain (e.g., pointer to Group or Rule ID)
-	data  interface{}
-	isEnd bool
+	data    interface{}
+	isEnd   bool
+	isExact bool // true = Domain, false = Namespace
 }
 
 // Trie is a thread-safe prefix tree for domain matching
@@ -31,7 +32,8 @@ func New() *Trie {
 // Insert adds a domain to the Trie with associated data.
 // Domains are stored in reverse part order: "google.com" -> "com" -> "google"
 // This allows efficiently matching "*.google.com" (namespace) rules against "mail.google.com".
-func (t *Trie) Insert(domain string, data interface{}) {
+// exact: if true, this rule will NOT match subdomains (strict domain match).
+func (t *Trie) Insert(domain string, data interface{}, exact bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -49,6 +51,7 @@ func (t *Trie) Insert(domain string, data interface{}) {
 		node = node.children[part]
 	}
 	node.isEnd = true
+	node.isExact = exact
 	node.data = data
 }
 
@@ -69,30 +72,34 @@ func (t *Trie) Search(domain string) (interface{}, bool) {
 	var lastMatchData interface{}
 	var found bool
 
-	// Traverse in reverse order
+	// Traverse in reverse order (query: mail.google.com -> com, google, mail)
 	for i := len(parts) - 1; i >= 0; i-- {
 		part := parts[i]
 
-		// If the current node marks the end of a registered domain,
-		// it means we found a match for a shorter suffix.
-		// e.g. for "a.b.c.com", if "c.com" is registered, we'll see isEnd=true at "c"
-		if node.isEnd {
-			lastMatchData = node.data
-			found = true
-		}
-
 		nextNode, ok := node.children[part]
 		if !ok {
-			// If we can't go deeper, checking if the current position was already a valid match
-			// (meaning we matched a parent domain)
+			// Cannot go deeper. Return whatever we found so far.
 			return lastMatchData, found
 		}
 		node = nextNode
-	}
 
-	// Check the final node (exact match)
-	if node.isEnd {
-		return node.data, true
+		// If current node is a registered rule end
+		if node.isEnd {
+			// If strict match is required (Domain type)
+			if node.isExact {
+				// We must be at the end of the query string (last part processed).
+				// Since we loop backwards, "end of query" means index 0 (first part of domain string).
+				if i == 0 {
+					return node.data, true
+				}
+				// If i > 0 (e.g. we matched "google.com" but query is "mail.google.com"),
+				// we ignore this match because it's NOT exact.
+			} else {
+				// Namespace type (suffix match) - always valid match
+				lastMatchData = node.data
+				found = true
+			}
+		}
 	}
 
 	return lastMatchData, found

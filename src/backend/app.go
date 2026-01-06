@@ -303,7 +303,7 @@ func (a *App) SyncAllRules() {
 			}
 
 			if rule.Type == "domain" {
-				newTrie.Insert(rule.Rule, g)
+				newTrie.Insert(rule.Rule, g, true)
 			} else if rule.Type == "wildcard" && (strings.Contains(rule.Rule, "*") || strings.Contains(rule.Rule, "?")) {
 				newWildcards = append(newWildcards, &WildcardRule{
 					Rule:  rule.Rule,
@@ -311,7 +311,7 @@ func (a *App) SyncAllRules() {
 				})
 			} else if rule.Type == "namespace" || rule.Type == "wildcard" {
 				cleanDomain := strings.TrimPrefix(rule.Rule, "*.")
-				newTrie.Insert(cleanDomain, g)
+				newTrie.Insert(cleanDomain, g, false)
 			} else if useRegexp && (rule.Type == "regexp" || rule.Type == "regex") {
 				if r, err := regexp.Compile(rule.Rule); err == nil {
 					newRegexps = append(newRegexps, &RegexpRule{
