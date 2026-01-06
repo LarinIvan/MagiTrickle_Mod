@@ -130,5 +130,13 @@
   "What's New": "Что нового",
   "settings.advanced_engines": "Расширенные движки поиска",
   "settings.enable_wildcard": "Использовать Wildcard",
-  "settings.enable_wildcard_desc": "Поддержка шаблонов с символами * и ?"
+  "settings.enable_wildcard_desc": "Поддержка шаблонов с символами * и ?",
+  "Replace current configuration": "Заменить конфигурацию",
+  "Config replaced": "Конфигурация заменена",
+  "Merge Mode Description": "Выбранные группы будут добавлены к текущему конфигу",
+  "Replace Mode Description": "Текущий конфиг будет полностью перезаписан выбранными группами",
+  "Select config file": "Выберите файл с конфигом",
+  "Drop file here or click to upload": "Перетащите файл сюда или нажмите для выбора",
+  "Select groups to export": "Выберите группы для экспорта",
+  "Export": "Экспортировать"
 }

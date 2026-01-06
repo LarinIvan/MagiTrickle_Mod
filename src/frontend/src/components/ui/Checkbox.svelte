@@ -85,6 +85,7 @@
       box-shadow 0.18s ease;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
     position: relative;
+    pointer-events: none;
   }
 
   .checkbox:not([data-disabled]):hover .box {

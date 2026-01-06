@@ -39,5 +39,13 @@
     "settings.advanced_engines": "Advanced Matching Engines",
     "settings.enable_wildcard": "Use Wildcard",
     "settings.enable_wildcard_desc": "Support patterns with * and ? characters",
-    "{count} selected": "Groups selected: {count}"
+    "{count} selected": "Groups selected: {count}",
+    "Replace current configuration": "Replace configuration",
+    "Config replaced": "Configuration replaced",
+    "Merge Mode Description": "Selected groups will be added to the current config",
+    "Replace Mode Description": "Current config will be fully overwritten by selected groups",
+    "Select config file": "Select config file",
+    "Drop file here or click to upload": "Drop file here or click to upload",
+    "Select groups to export": "Select groups to export",
+    "Export": "Export"
 }
