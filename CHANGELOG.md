@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.1-(mod-0.0.8)
+
+### 📦 Rules Import System (Система импорта правил)
+- **Lists Download**:
+    - Возможность поиска и загрузки списков доменов популярных сервисов (Google, Telegram, Apple и др.) прямо в окне импорта
+    - Интеграция с репозиторием `v2fly/domain-list-community`
+    - Автоматическая загрузка содержимого выбранного списка правил
+- **Advanced Rules Parsing**:
+    - Умный разбор префиксов (`full:`, `domain:`, `regexp:`) при импорте
+    - **Metadata Preservation**: Комментарии, атрибуты (`@attr`) и удаленные префиксы сохраняются в название правила для истории
+
+### 🐛 Fixes & Improvements
+- **Strict Domain Matching**:
+    - Изменена логика работы Trie-дерева для правил типа `Domain`. Теперь они работают корректно как **строгое совпадение** (Exact Match). Ранее работало аналогично Namespace
+
 ## v0.3.1-(mod-0.0.7)
 
 ### 📦 Import/Export Config
