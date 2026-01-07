@@ -32,6 +32,7 @@
   import GroupPanel from "./components/GroupPanel.svelte";
   import ImportRulesDialog from "./dialogs/ImportRulesDialog.svelte";
   import ImportConfigDialog from "./dialogs/ImportConfigDialog.svelte";
+  import ExportConfigDialog from "./dialogs/ExportConfigDialog.svelte";
 
   import { groupsStore } from "../../data/groups.svelte";
 
@@ -66,7 +67,10 @@
     importConfigModal = { open: false, groups: [], fileName: "" };
   }
 
-  // --- Bulk Selection State ---
+  let exportConfigModal = $state<{ open: boolean }>({ open: false });
+  function resetExportConfigModal() {
+    exportConfigModal = { open: false };
+  }
   let selectedGroupIds = $state<Set<string>>(new Set());
   let selectionBox = $state<{
     startX: number;
@@ -559,20 +563,26 @@
   }
 
   function exportConfig() {
-    const blob = new Blob([JSON.stringify({ groups: groupsStore.all })], {
+    exportConfigModal = { open: true };
+  }
+
+  function handleExport(e: CustomEvent<{ groups: Group[] }>) {
+    const blob = new Blob([JSON.stringify({ groups: e.detail.groups })], {
       type: "application/json",
     });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "config.mtrickle";
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const dateStr = `${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+    const timeStr = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+    link.download = `config_${dateStr}_${timeStr}.mtrickle`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
-  function importConfig() {
-    const input = document.getElementById("import-config") as HTMLInputElement;
-    const file = input.files?.[0];
+  function processConfigFile(file: File) {
     if (!file) {
       alert(t("Please select a CONFIG file to load."));
       return;
@@ -603,7 +613,6 @@
       toast.error(t("Invalid config file"));
     };
     reader.readAsText(file);
-    input.value = "";
   }
 
   async function loadMore(group_index: number): Promise<void> {
@@ -813,21 +822,24 @@
         </Button>
       </Tooltip>
       <Tooltip value={t("Import Config")}>
-        <input type="file" id="import-config" hidden accept=".mtrickle" onchange={importConfig} />
-        <Button onclick={() => document.getElementById("import-config")!.click()}>
+        <Button
+          onclick={() => {
+            importConfigModal = { open: true, groups: [], fileName: "" };
+          }}
+        >
           <Upload size={22} />
         </Button>
       </Tooltip>
       <div class="separator"></div>
       <Tooltip value={t("Collapse All")}>
-        <Button onclick={collapseAll}><CollapseAll size={22} /></Button>
+        <Button onclick={collapseAll}><CollapseAll size="22" /></Button>
       </Tooltip>
       <Tooltip value={t("Expand All")}>
-        <Button onclick={expandAll}><ExpandAll size={22} /></Button>
+        <Button onclick={expandAll}><ExpandAll size="22" /></Button>
       </Tooltip>
       <div class="separator"></div>
       <Tooltip value={t("Add Group")}>
-        <Button onclick={addGroup}><Add size={22} /></Button>
+        <Button onclick={addGroup}><Add size="22" /></Button>
       </Tooltip>
     </div>
   </div>
@@ -998,9 +1010,16 @@
   groups={importConfigModal.groups}
   fileName={importConfigModal.fileName}
   on:close={resetImportConfigModal}
+  on:file={(e) => processConfigFile(e.detail.file)}
   on:import={(e) => {
     const imported = e.detail.groups.map(cloneGroupWithNewIds);
     if (!imported.length) return;
+
+    if (e.detail.replace) {
+      groupsStore.all = [];
+      showed_limit = [];
+    }
+
     for (let i = imported.length - 1; i >= 0; i--) {
       const group = imported[i];
       groupsStore.all.unshift(group);
@@ -1009,8 +1028,20 @@
       );
       open_state.current[group.id] = true;
     }
-    toast.success(`${t("Config imported")}: ${imported.length}`);
+
+    if (e.detail.replace) {
+      toast.success(`${t("Config replaced")}: ${imported.length}`);
+    } else {
+      toast.success(`${t("Config imported")}: ${imported.length}`);
+    }
   }}
+/>
+
+<ExportConfigDialog
+  open={exportConfigModal.open}
+  groups={groupsStore.all}
+  on:close={resetExportConfigModal}
+  on:export={handleExport}
 />
 
 <style>

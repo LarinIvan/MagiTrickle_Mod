@@ -1,69 +1,85 @@
+<div align="center">
+  <h1>$\color{green}{\text{EN}}$ | <a href="README_RU.md">RU</a></h1>
+</div>
+<br/>
+
 <p align="center">
-  <img src="img/banner.png" alt="MagiTrickle logo"/>
+  <img src="img/banner.png" alt="MagiTrickle logo" width="300"/>
 </p>
 
 
 MagiTrickle Mod
 =======
 
-## Назначение
+## Purpose
 
-**MagiTrickle Mod** — расширенная версия утилиты MagiTrickle для точечной маршрутизации трафика по заданным доменным именам. Представляет собой установочный пакет, устанавливаемый в дополнение к операционной системе маршрутизатора
+**MagiTrickle Mod** is an extended version of the MagiTrickle utility designed for selective traffic routing based on domain names. It acts as an installation package installed on top of the router's operating system.
 
-Принцип работы основан на подмене основного DNS-сервера через промежуточный компонент без его отключения. Это позволяет перехватывать входящие DNS-запросы, кешировать ответы и сопоставлять IP-адреса с доменными именами. Благодаря этому становится возможной маршрутизация трафика без необходимости очистки DNS-кэша на стороне клиентов. Очистка кэша требуется только при запуске или перезапуске сервиса MagiTrickle, поскольку в этот момент кэш ещё не прогрет, и маршрутизация невозможна до первого запроса к нужному домену
+The principle of operation operates by intercepting the main DNS server via an intermediate component without disabling it. This allows capturing incoming DNS requests, caching responses, and mapping IP addresses to domain names. This enables traffic routing without the need to clear the client-side DNS cache. Cache clearing is only required when starting or restarting the MagiTrickle service, as the cache is cold at that moment, and routing is not possible until the first request to the target domain is made
 
-### Отличия от оригинала (Mod Features)
+### Mod Features vs Original
 
-#### 🚀 Производительность и Оптимизация
-*   **Trie (Prefix Tree) Lookup**: Оригинал перебирает массив правил линейно. Мод использует префиксное дерево (Trie), что позволяет мгновенно находить нужный интерфейс даже среди тысяч доменов
-// TODO: выбор режима работы (trie/linear) в зависимости от количества правил
-*   **iptables**: Сокращение количества правил в таблице iptables за счет создания одного правила для всех групп с одинаковым интерфейсом. Как побочный эффект - быстрое сохранение конфига групп
-*   Прочие улучшения работы при добавлении/удалении/включении/выключении групп и правил
+#### 🚀 Performance & Optimization
+*   **Trie (Prefix Tree) Lookup**: The original version iterates through rules linearly. The Mod uses a Prefix Tree (Trie), allowing for instant interface lookup even among thousands of domains
+*   **iptables**: Reduced number of iptables rules by creating a single rule for all groups with the same interface. A side effect is faster group config saving
+*   **TrafficManager**: More efficient traffic handling by checking rules in blocks: first all Namespace rules (via Trie), then Wildcard, and finally Regexp expressions, rather than sequential iteration
+*   **Other improvements** in performance when adding/removing/enabling/disabling groups and rules
 
-#### 🛠 Улучшенный Интерфейс (UX)
-*   **Вкладки (Tabs)**: Интерфейс разделен на логические вкладки: `Группы`, `Интерфейсы`, `Настройки`
-*   **Interface Shortcuts**: Возможность задавать имена системным интерфейсам (`nwg0`, `ovpn_br0`)
-*   **Mass Actions (Массовые действия)**:
-    *   Выделение нескольких групп с Shift/Ctrl
-    *   Массовое удаление, перемещение, **включение/выключение**, назначение интерфейса для групп и их удаление
-    *   Возможность сворачивания/разворачивания всех групп
-    *   Массовое **включение/выключение** правил внутри группы, а также массовое удаление правил
-    *   TODO: массовое выделение правил; перетаскивание правил между группами; и т.п.
-    *   Другие улучшения UI/UX
-*   // TODO: Доработка **мобильного интерфейса** (на данный момент для мода не проводилась)
+#### 🛠 Improved User Interface (UX)
+*   **Tabs**: Interface is divided into logical tabs: `Groups`, `Interfaces`, `Settings`
+*   **Interface Shortcuts**: Ability to assign aliases to system interfaces (e.g., `nwg0` -> `WireGuard - Netherlands`)
+*   **Mass Actions**:
+    *   Multi-selection of groups using Shift/Ctrl
+    *   Mass deletion, moving, **enabling/disabling**, interface assignment for groups, and group deletion
+    *   Ability to value collapse/expand all groups
+    *   Mass **enabling/disabling** of rules within a group, as well as mass rule deletion
+    *   TODO: mass rule selection; dragging rules between groups; etc
+    *   Other UI/UX improvements
+*   **Mobile Adaptive**: Full interface adaptation for mobile devices
+    *   **Bottom Navigation**: Convenient navigation between tabs via a bottom bar
+    *   **Mobile Controls**: Adapted controls, menus, and lists for touch screens
+    *   **Mobile Bulk Actions**: Support for multi-selection and bulk actions with groups on smartphones
 
-#### ⚙️ Новый Функционал
-*   **Speedtest**: Встроенная утилита для замера скорости соединенияпрямо с роутера
-    *   **Interface Binding**: Возможность проверить скорость **через конкретный интерфейс** (например, внутри VPN туннеля), игнорируя основной шлюз
-*   **Auto-Update**: Система автоматической проверки и обновления версии мода прямо из веб-интерфейса
-    *   Уведомления о выходе новых версий
-    *   Обновление в один клик (без консоли)
-*   **Regexp Toggle**: Возможность полностью отключить движок регулярных выражений в настройках (рекомендуемо автором мода)
-*   **Логгер**: Встроенный просмотр логов (`ConsoleWindow`) прямо в веб-интерфейсе. Возможность менять уровень логирования в настройках
-*   **Restart Service**: Возможность перезагрузки сервиса из веб-интерфейса
+#### ⚙️ New Features
+*   **Speedtest**: Built-in utility for measuring connection speed directly from the router
+    *   **Interface Binding**: Ability to test speed **through a specific interface** (e.g., inside a VPN tunnel), ignoring the default gateway
+*   **Lists Import**: Built-in search and download of popular community lists (e.g. Google, Telegram, Apple) directly from `v2fly/domain-list-community`
+*   **Export/Import Config**: Enhanced system for exporting/importing group configurations with support for selective export
+*   **Auto-Update**: System for automatic checking and installing mod updates directly from the web interface
+    *   Notifications about new versions
+    *   One-click update (no console required)
+*   **Regexp Toggle**: Ability to fully disable the regular expression engine in settings for maximum performance
+*   **Wildcards Toggle**: Ability to fully disable the wildcard engine in settings for maximum performance
+*   **Console/Logger**: Built-in log viewer (`ConsoleWindow`) directly in the web interface
+    *   Ability to change logging level in settings
+*   **Restart Service**: Ability to restart the service from the web interface
 
-### Скриншоты (Screenshots)
+### Screenshots
 
-| Группы (Main) | Интерфейсы (Interfaces) |
+| Groups (Main) | Bulk Edit |
 |:---:|:---:|
-| <img src="img/main_screenshot.png" width="400"/> | <img src="img/screenshot_interfaces.png" width="400"/> |
+| <img src="img/main_screenshot.png" width="400"/> | <img src="img/bulk_edit.png" width="400"/> |
 
-| Настройки (Settings) | Speedtest |
+| Interfaces | Speedtest |
 |:---:|:---:|
-| <img src="img/screenshot_settings.png" width="400"/> | <img src="img/screenshot_speedtest.png" width="400"/> |
+| <img src="img/screenshot_interfaces.png" width="400"/> | <img src="img/screenshot_speedtest.png" width="400"/> |
 
-## Установка (Автоматическая)
+| Settings | |
+|:---:|:---:|
+| <img src="img/screenshot_settings.png" width="400"/> | |
 
-Это рекомендуемый способ. Скрипт сам определит архитектуру вашего роутера, добавит репозиторий и подскажет команды для установки
+## Installation (Automatic)
+
+This is the recommended method. The script will automatically detect your router's architecture, add the repository, and suggest installation commands
 
 > [!IMPORTANT]
-> **Важно**: Если у вас установлен оригинальный `magitrickle`, удалите его перед установкой мода:
+> **Important**: If you have the original `magitrickle` installed, remove it before installing the mod:
 > ```bash
 > /opt/etc/init.d/S99magitrickle stop
 > opkg remove magitrickle
 > ```
 
-Выполните в консоли роутера:
+Execute in the router console:
 ```bash
 opkg install wget-ssl ca-certificates
 ```
@@ -71,7 +87,7 @@ opkg install wget-ssl ca-certificates
 wget -qO- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
 ```
 
-После выполнения скрипта установите сервис командами:
+After executing the script, install the service with the commands:
 ```bash
 opkg update
 ```
@@ -79,26 +95,26 @@ opkg update
 opkg install magitrickle_mod
 ```
 
-**Затем запустите сервис**
+**Then start the service**
 ```bash
 /opt/etc/init.d/S99magitrickle start
 ```
 
-**Дальнейшие обновления рекомендуется выполнять через веб-интерфейс**
+**Further updates are recommended to be performed via the web interface.**
 
-## Веб-интерфейс
-После запуска интерфейс будет доступен по адресу вашего роутера, порт **8080**
-Например: `http://192.168.1.1:8080`
+## Web Interface
+After startup, the interface will be available at your router's address, port **8080**.
+For example: `http://192.168.1.1:8080`
 
-Конфигурация хранится в файле: `/opt/var/lib/magitrickle/config.yaml`
+Configuration is stored in: `/opt/var/lib/magitrickle/config.yaml`
 
-## Описание типов правил
+## Rule Types Description
 
-### Namespace (Именное пространство)
+### Namespace
 
-Охватывает указанный домен и все его поддомены
+Covers the specified domain and all its subdomains.
 
-Например, при записи `example.com` будут обрабатываться:
+For example, `example.com` interprets:
 ```
 ✅ example.com
 ✅ sub.example.com
@@ -107,13 +123,13 @@ opkg install magitrickle_mod
 ❌ example.net
 ```
 
-### Wildcard (Подстановочный шаблон)
+### Wildcard
 
-Шаблон с `*` и `?` — позволяет задавать гибкие условия:
-- `*` — любое количество любых символов
-- `?` — ровно один любой символ
+Template with `*` and `?` — allows for flexible conditions:
+- `*` — any number of any characters.
+- `?` — exactly one arbitrary character.
 
-Например, при записи `*example.com` будут обрабатываться:
+For example, `*example.com` interprets:
 ```
 ✅ example.com
 ✅ sub.example.com
@@ -122,11 +138,11 @@ opkg install magitrickle_mod
 ❌ example.net
 ```
 
-### Domain (Точный домен)
+### Domain (Exact Match)
 
-Правило применяется только к строго указанному домену, без поддоменов.
+Rule applies only to the strictly specified domain, without subdomains
 
-Например, при записи `sub.example.com` будут обрабатываться:
+For example, `sub.example.com` interprets:
 ```
 ❌ example.com
 ✅ sub.example.com
@@ -135,11 +151,12 @@ opkg install magitrickle_mod
 ❌ example.net
 ```
 
-### RegExp (Регулярное выражение)
+### RegExp (Regular Expression)
 
-Для опытных пользователей. Используется парсер [dlclark/regexp2](https://github.com/dlclark/regexp2)
+For advanced users. Uses the **Google RE2** engine (Golang standard library)
+> **Important**: Look-around (look-ahead, look-behind) are **not supported** for the sake of speed (O(n)). Use simple and efficient patterns
 
-Например, при записи `^[a-z]*example\.com$` будут обрабатываться:
+For example, `^[a-z]*example\.com$` interprets:
 ```
 ✅ example.com
 ❌ sub.example.com
@@ -150,6 +167,7 @@ opkg install magitrickle_mod
 ___________
 
 > [!NOTE]
-> **Это неофициальная модификация (Mod)**
-> Данная версия развивается независимо, но при этом происходят регулярные слияния (merge) с оригинальным проектом. > Версионирование имеет вид `vX.X.X-(mod-Y.Y.Y)`, где `X.X.X` - версия оригинального проекта, которая была смержена в сборку, а `Y.Y.Y` - версия текущего проекта MagiTrickle_Mod
-> Оригинальный проект: [gitlab.com/magitrickle/magitrickle](https://gitlab.com/magitrickle/magitrickle)
+> **This is an unofficial modification (Mod)**
+> This version is developed independently, but regular merges with the original project occur
+> Versioning follows `vX.X.X-(mod-Y.Y.Y)`, where `X.X.X` is the upstream version merged into the build, and `Y.Y.Y` is the version of the current MagiTrickle_Mod project
+> Original project: [gitlab.com/magitrickle/magitrickle](https://gitlab.com/magitrickle/magitrickle)

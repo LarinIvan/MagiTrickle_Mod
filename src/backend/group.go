@@ -3,8 +3,6 @@ package magitrickle
 import (
 	"fmt"
 	"net"
-	"regexp"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,10 +11,6 @@ import (
 	"magitrickle/utils/netfilterTools"
 
 	"github.com/vishvananda/netlink"
-)
-
-var (
-	ipv4SubnetRe = regexp.MustCompile(`^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?:/(\d{1,2}))?$`)
 )
 
 type Group struct {
@@ -111,51 +105,101 @@ func (g *Group) Sync() error {
 }
 
 func (g *Group) sync() error {
-	var v4Subnets []netfilterTools.IPv4Subnet
-	var v6Subnets []netfilterTools.IPv6Subnet
+	newIPv4SubnetList := make(map[netfilterTools.IPv4Subnet]bool)
+	newIPv6SubnetList := make(map[netfilterTools.IPv6Subnet]bool)
 
-RuleLoop:
 	for _, domain := range g.Rules {
 		if !domain.IsEnabled() {
 			continue
 		}
 
-		// Parse Subnet Rules directly
-		if domain.Type == "subnet" {
-			matches := ipv4SubnetRe.FindStringSubmatch(domain.Rule)
-			if matches == nil {
+		switch domain.Type {
+		case "subnet":
+			ip, ipNet, err := net.ParseCIDR(domain.Rule)
+			if err != nil {
+				ip = net.ParseIP(domain.Rule)
+				if ip == nil {
+					continue
+				}
+
+				ip = ip.To4()
+				if ip == nil {
+					continue
+				}
+
+				ipNet = &net.IPNet{
+					IP:   ip,
+					Mask: net.CIDRMask(32, 32),
+				}
+			}
+
+			ones, bits := ipNet.Mask.Size()
+			if bits != 32 || ones > 32 {
 				continue
 			}
 
 			var addr [4]byte
-			for i := 1; i <= 4; i++ {
-				n, _ := strconv.Atoi(matches[i])
-				if n > 255 {
-					continue RuleLoop
-				}
-				addr[i-1] = uint8(n)
+			copy(addr[:], ipNet.IP.Mask(ipNet.Mask).To4())
+			cidr := uint8(ones)
+
+			if addr == ([4]byte{}) && cidr == 0 {
+				newIPv4SubnetList[netfilterTools.IPv4Subnet{
+					Address: [4]byte{0x00},
+					CIDR:    1,
+				}] = true
+				newIPv4SubnetList[netfilterTools.IPv4Subnet{
+					Address: [4]byte{0x80},
+					CIDR:    1,
+				}] = true
+			} else {
+				newIPv4SubnetList[netfilterTools.IPv4Subnet{
+					Address: addr,
+					CIDR:    cidr,
+				}] = true
 			}
 
-			var cidr uint8
-			if matches[5] != "" {
-				n, _ := strconv.Atoi(matches[5])
-				if n > 32 {
-					continue RuleLoop
+		case "subnet6":
+			ip, ipNet, err := net.ParseCIDR(domain.Rule)
+			if err != nil {
+				ip = net.ParseIP(domain.Rule)
+				if ip == nil {
+					continue
 				}
-				cidr = uint8(n)
-				// Apply mask
-				addr = [4]byte(net.IP(addr[:]).Mask(net.CIDRMask(n, 32)))
-			} else {
-				// No CIDR means /32 (single IP)
-				cidr = 32
+
+				ip = ip.To16()
+				if ip == nil {
+					continue
+				}
+
+				ipNet = &net.IPNet{
+					IP:   ip,
+					Mask: net.CIDRMask(128, 128),
+				}
 			}
 
-			if !(addr == [4]byte{0, 0, 0, 0} && cidr == 0) {
-				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: addr, CIDR: cidr})
+			ones, bits := ipNet.Mask.Size()
+			if bits != 128 || ones > 128 {
+				continue
+			}
+
+			var addr [16]byte
+			copy(addr[:], ipNet.IP.Mask(ipNet.Mask).To16())
+			cidr := uint8(ones)
+
+			if addr == ([16]byte{}) && cidr == 0 {
+				newIPv6SubnetList[netfilterTools.IPv6Subnet{
+					Address: [16]byte{0x00},
+					CIDR:    1,
+				}] = true
+				newIPv6SubnetList[netfilterTools.IPv6Subnet{
+					Address: [16]byte{0x80},
+					CIDR:    1,
+				}] = true
 			} else {
-				// 0.0.0.0/1 and 128.0.0.0/1 hack for 0.0.0.0/0
-				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: [4]byte{0, 0, 0, 0}, CIDR: 1})
-				v4Subnets = append(v4Subnets, netfilterTools.IPv4Subnet{Address: [4]byte{128, 0, 0, 0}, CIDR: 1})
+				newIPv6SubnetList[netfilterTools.IPv6Subnet{
+					Address: addr,
+					CIDR:    cidr,
+				}] = true
 			}
 			continue
 		}
@@ -190,7 +234,8 @@ RuleLoop:
 		}
 	}
 
-	return g.app.trafficManager.UpdateGroupRules(g.ID, g.Interface, v4Subnets, v6Subnets)
+	// Pass maps directly to TrafficManager (Refactor: changed to bool maps)
+	return g.app.trafficManager.UpdateGroupRules(g.ID, g.Interface, newIPv4SubnetList, newIPv6SubnetList)
 }
 
 // Legacy hooks that might be called (though we aim to remove them from caller too)

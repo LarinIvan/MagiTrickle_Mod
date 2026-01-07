@@ -770,7 +770,48 @@ func (h *Handler) GetExternalIP(w http.ResponseWriter, r *http.Request) {
 //	@Router			/api/v1/diagnostics/speedtest [get]
 func (h *Handler) RunSpeedtest(w http.ResponseWriter, r *http.Request) {
 	ifaceName := r.URL.Query().Get("interface")
-	diagnostics.RunSpeedtestStream(w, ifaceName)
+	serverID, _ := strconv.Atoi(r.URL.Query().Get("server_id"))
+	parallelLoss := r.URL.Query().Get("parallel_loss") == "true"
+	diagnostics.RunSpeedtestStream(w, ifaceName, serverID, parallelLoss)
+}
+
+// GetSpeedtestServers
+//
+//	@Summary		Получить список серверов Speedtest
+//	@Description	Возвращает список доступных серверов Speedtest
+//	@Tags			diagnostics
+//	@Produce		json
+//	@Param			interface	query		string	false	"Имя интерфейса"
+//	@Success		200			{object}	[]types.SpeedtestServer
+//	@Failure		500			{object}	types.ErrorRes
+//	@Router			/api/v1/diagnostics/speedtest/servers [get]
+func (h *Handler) GetSpeedtestServers(w http.ResponseWriter, r *http.Request) {
+	ifaceName := r.URL.Query().Get("interface")
+	search := r.URL.Query().Get("search")
+	servers, err := diagnostics.GetServers(ifaceName, search)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Sprintf("failed to get servers: %v", err))
+		return
+	}
+
+	// Convert to DTO if needed using simple anonymous struct or define type
+	// Since we don't have a specific DTO type readily available in the import list for handlers,
+	// let's create a simplified response or map direct fields.
+	// Ideally we should use a type from api/v1/types.
+	// Let's assume we return simplified struct list.
+
+	res := make([]map[string]interface{}, len(servers))
+	for i, s := range servers {
+		res[i] = map[string]interface{}{
+			"id":       s.ID,
+			"name":     s.Name,
+			"country":  s.Country,
+			"sponsor":  s.Sponsor,
+			"distance": s.Distance,
+			"latency":  s.Latency.Milliseconds(),
+		}
+	}
+	utils.WriteJson(w, http.StatusOK, res)
 }
 
 // CheckUpdate
