@@ -138,5 +138,10 @@
   "Select config file": "Выберите файл с конфигом",
   "Drop file here or click to upload": "Перетащите файл сюда или нажмите для выбора",
   "Select groups to export": "Выберите группы для экспорта",
-  "Export": "Экспортировать"
+  "Export": "Экспортировать",
+  "Failed to load community lists": "Не удалось загрузить списки",
+  "Search community lists (e.g. 'google', 'telegram')...": "Поиск списков (например 'google', 'telegram')...",
+  "Loaded list: ": "Список загружен: ",
+  "Failed to download list content": "Не удалось загрузить содержимое списка",
+  "No valid rules to import": "Нет правил для добавления"
 }

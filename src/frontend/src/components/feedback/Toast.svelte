@@ -63,7 +63,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
+    z-index: 20000;
     min-width: 200px;
     max-width: 400px;
     padding: 15px;
