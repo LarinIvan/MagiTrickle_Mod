@@ -1,5 +1,6 @@
 <div align="center">
   <h1><a href="README.md">EN</a> | $\color{green}{\text{RU}}$</h1>
+  <p><a href="docs/OPENWRT_RU.md">Инструкция для OpenWRT</a></p>
 </div>
 <br/>
 
@@ -70,44 +71,56 @@ MagiTrickle Mod
 | <img src="img/screenshot_settings.png" width="400"/> | |
 
 ## Установка (Автоматическая)
+Рекомендуется как для **Entware**, так и для **OpenWRT**.
 
-Это рекомендуемый способ. Скрипт сам определит архитектуру вашего роутера, добавит репозиторий и подскажет команды для установки
+Скрипт автоматически определит вашу платформу (Entware или OpenWRT), добавит репозиторий и подскажет команды для установки.
 
 > [!IMPORTANT]
 > **Важно**: Если у вас установлен оригинальный `magitrickle`, удалите его перед установкой мода:
 > ```bash
+> # Entware
 > /opt/etc/init.d/S99magitrickle stop
+> opkg remove magitrickle
+> 
+> # OpenWRT
+> /etc/init.d/magitrickle stop
 > opkg remove magitrickle
 > ```
 
-Выполните в консоли роутера:
+Выполните следующую команду в консоли роутера:
+
 ```bash
-opkg install wget-ssl ca-certificates
-```
-```bash
-wget -qO- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
+wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
 ```
 
-После выполнения скрипта установите сервис командами:
-```bash
-opkg update
-```
-```bash
-opkg install magitrickle_mod
-```
+Скрипт автоматически установит и запустит сервис.
 
-**Затем запустите сервис**
-```bash
-/opt/etc/init.d/S99magitrickle start
-```
 
-**Дальнейшие обновления рекомендуется выполнять через веб-интерфейс**
+**Дальнейшие обновления рекомендуется выполнять через веб-интерфейс.**
 
 ## Веб-интерфейс
 После запуска интерфейс будет доступен по адресу вашего роутера, порт **8080**
 Например: `http://192.168.1.1:8080`
 
 Конфигурация хранится в файле: `/opt/var/lib/magitrickle/config.yaml`
+
+## Управление сервисом
+
+**Entware:**
+```bash
+/opt/etc/init.d/S99magitrickle start    # Запуск сервиса
+/opt/etc/init.d/S99magitrickle stop     # Остановка сервиса
+/opt/etc/init.d/S99magitrickle restart  # Перезапуск сервиса
+/opt/etc/init.d/S99magitrickle status   # Проверка статуса
+```
+
+**OpenWRT:**
+```bash
+/etc/init.d/magitrickle start    # Запуск сервиса
+/etc/init.d/magitrickle stop     # Остановка сервиса
+/etc/init.d/magitrickle restart  # Перезапуск сервиса
+/etc/init.d/magitrickle status   # Проверка статуса
+```
 
 ## Описание типов правил
 
