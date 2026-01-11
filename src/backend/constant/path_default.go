@@ -8,4 +8,13 @@ const (
 	AppStateDir  = "/var/lib/magitrickle"
 	PIDPath      = "/var/run/magitrickle.pid"
 	SockPath     = "/var/run/magitrickle.sock"
+
+	InitScriptPath  = "/etc/init.d/magitrickle"
+	OpkgUpgradeArgs = ""
+
+	// Package update settings
+	PackageURLTemplate = ""
+	RepoURL            = "" // Not used for default platform
+	RepoConfPath       = "" // Not used for default platform
+	PlatformName       = "default"
 )
