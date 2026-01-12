@@ -90,7 +90,7 @@ MagiTrickle Mod
 Выполните следующую команду в консоли роутера:
 
 ```bash
-wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
+opkg update; opkg install wget-ssl ca-certificates; wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
 ```
 
 Скрипт автоматически установит и запустит сервис.
@@ -112,6 +112,7 @@ wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add
 /opt/etc/init.d/S99magitrickle stop     # Остановка сервиса
 /opt/etc/init.d/S99magitrickle restart  # Перезапуск сервиса
 /opt/etc/init.d/S99magitrickle status   # Проверка статуса
+opkg remove magitrickle_mod             # Удаление сервиса
 ```
 
 **OpenWRT:**
@@ -120,7 +121,16 @@ wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add
 /etc/init.d/magitrickle stop     # Остановка сервиса
 /etc/init.d/magitrickle restart  # Перезапуск сервиса
 /etc/init.d/magitrickle status   # Проверка статуса
+opkg remove magitrickle_mod      # Удаление сервиса
 ```
+
+**Ручное обновление (Entware и OpenWRT)**
+
+Для обновления просто запустите команду установки заново:
+```bash
+wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
+```
+
 
 ## Описание типов правил
 

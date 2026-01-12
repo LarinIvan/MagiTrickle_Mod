@@ -11,21 +11,8 @@ if [ -z "$OPKG_BIN" ]; then
     exit 1
 fi
 
+
 echo "Found opkg at: $OPKG_BIN"
-
-# Ensure required dependencies are installed
-echo "Checking dependencies..."
-if ! $OPKG_BIN list-installed | grep -q "^wget-ssl "; then
-    echo "Installing wget-ssl..."
-    $OPKG_BIN update
-    $OPKG_BIN install wget-ssl
-fi
-
-if ! $OPKG_BIN list-installed | grep -q "^ca-certificates "; then
-    echo "Installing ca-certificates..."
-    $OPKG_BIN install ca-certificates
-fi
-echo "Dependencies OK"
 
 # Detect platform by specific marker files
 IS_ENTWARE=0
@@ -57,7 +44,7 @@ fi
 # Find the architecture with the highest priority that is NOT 'all' or 'noarch'
 # Entware output: "arch <name> <priority>" (3 columns)
 # OpenWRT output: arch <name> <priority>" (3 columns)
-# Any other output with 2 columns: "<name> <priority>" (2 columns)
+# Any other strange output with 2 columns: "<name> <priority>" (2 columns)
 ARCH=$($OPKG_BIN print-architecture | awk '{if (NF==3) print $2, $3; else print $1, $2}' | grep -v -E "^(all|noarch)" | sort -n -k 2 | tail -n 1 | awk '{print $1}')
 
 if [ -z "$ARCH" ]; then
@@ -66,9 +53,34 @@ if [ -z "$ARCH" ]; then
 fi
 
 echo "Architecture: $ARCH"
-
-# Add Repository
 REPO_URL="https://github.com/LarinIvan/MagiTrickle_Mod/releases/latest/download"
+
+# Version Check
+echo "Checking versions..."
+INSTALLED_VERSION=$($OPKG_BIN list-installed magitrickle_mod | awk '{print $3}')
+
+NEED_UPDATE=0
+
+if [ -z "$INSTALLED_VERSION" ]; then
+    echo "Package not installed. Installing..."
+    NEED_UPDATE=1
+else
+    LATEST_VERSION=$(wget -qO- https://api.github.com/repos/LarinIvan/MagiTrickle_Mod/releases/latest | grep '"tag_name"' | head -n1 | cut -d'"' -f4)
+    
+    CLEAN_INSTALLED_VERSION=$(echo "$INSTALLED_VERSION" | sed 's/-[0-9]*$//')
+
+    echo "Latest version: $LATEST_VERSION"
+    echo "Installed version: $INSTALLED_VERSION"
+
+    if [ -n "$LATEST_VERSION" ] && [ "$LATEST_VERSION" != "$CLEAN_INSTALLED_VERSION" ]; then
+        echo "New version available ($LATEST_VERSION). Updating..."
+        NEED_UPDATE=1
+    else
+        echo "Latest version already installed. No action needed."
+        NEED_UPDATE=0
+    fi
+fi
+
 
 if [ "$IS_ENTWARE" -eq 1 ]; then
     CONF_DIR="/opt/etc/opkg"
@@ -80,34 +92,56 @@ if [ "$IS_ENTWARE" -eq 1 ]; then
     echo "Repository successfully added to $CONF_FILE"
     
     echo ""
-    echo "Installing magitrickle_mod..."
     
-    # Update package list
-    $OPKG_BIN update
-    
-    # Install magitrickle_mod
-    if $OPKG_BIN install magitrickle_mod; then
-        echo ""
-        echo "✓ Installation successful!"
-        echo "Starting service..."
-        
-        # Start the service
-        $INIT_SCRIPT start
-        
-        echo ""
-        echo "✓ Service started successfully!"
-        
-        # Get router IP address from SSH connection
-        ROUTER_IP=$(echo $SSH_CONNECTION | awk '{print $3}')
-        if [ -z "$ROUTER_IP" ]; then
-            ROUTER_IP="your_router_ip"
+    if [ "$NEED_UPDATE" -eq 1 ]; then
+        if [ -z "$INSTALLED_VERSION" ]; then
+            echo "Installing magitrickle_mod..."
+            $OPKG_BIN update
+            
+            if $OPKG_BIN install magitrickle_mod; then
+                SUCCESS=1
+                echo ""
+                echo "✓ Installation successful!"
+            else
+                SUCCESS=0
+            fi
+        else
+            echo "Upgrading magitrickle_mod..."
+            $OPKG_BIN update
+            
+            if $OPKG_BIN upgrade magitrickle_mod; then
+                SUCCESS=1
+                echo ""
+                echo "✓ Update successful!"
+            else
+                SUCCESS=0
+            fi
         fi
-        
-        echo "Access web interface at: http://${ROUTER_IP}:8080"
+
+        if [ "$SUCCESS" -eq 1 ]; then
+            echo "Starting service..."
+            
+            # Start the service
+            $INIT_SCRIPT start
+            
+            echo ""
+            echo "✓ Service started successfully!"
+            
+            ROUTER_IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+            if [ -z "$ROUTER_IP" ]; then
+                ROUTER_IP="your_router_ip"
+            fi
+            
+            echo "Access web interface at: http://${ROUTER_IP}:8080"
+        else
+            echo ""
+            echo "✗ Installation failed!"
+            exit 1
+        fi
     else
+        # Already installed and up to date
         echo ""
-        echo "✗ Installation failed!"
-        exit 1
+        echo "✓ System is up to date."
     fi
 
 elif [ "$IS_OPENWRT" -eq 1 ]; then
@@ -132,52 +166,65 @@ elif [ "$IS_OPENWRT" -eq 1 ]; then
     echo "Repository successfully added!"
 
     echo ""
-    echo "Installing package..."
-    echo "1. Updating package lists..."
-    $OPKG_BIN update
+    
+    if [ "$NEED_UPDATE" -eq 1 ]; then
+        echo "Updating package..."
+        echo "1. Updating package lists..."
+        $OPKG_BIN update
 
-    echo "2. Removing old versions if present..."
-    # Always try remove first to avoid conflicts if previously installed
-    $OPKG_BIN remove magitrickle >/dev/null 2>&1
-    $OPKG_BIN remove magitrickle_mod >/dev/null 2>&1
-    
-    echo "3. Installing package for architecture: $ARCH"
-    
-    # Construct direct URL to the package file
-    # Package naming format: magitrickle_mod_openwrt-${ARCH}.ipk (note: dash, not underscore!)
-    DIRECT_URL="$REPO_URL/magitrickle_mod_openwrt-${ARCH}.ipk"
-    echo "Installing from: $DIRECT_URL"
-    
-    if $OPKG_BIN install "$DIRECT_URL" --force-checksum; then
+        # Construct direct URL to the package file
+        DIRECT_URL="$REPO_URL/magitrickle_mod_openwrt-${ARCH}.ipk"
+        
+        if [ -z "$INSTALLED_VERSION" ]; then
+            echo "2. Installing package for architecture: $ARCH"
+            echo "Installing from: $DIRECT_URL"
+            
+            if $OPKG_BIN install "$DIRECT_URL" --force-checksum; then
+                echo ""
+                echo "✓ Installation successful!"
+            else
+                echo ""
+                echo "Error: Package installation failed."
+                echo "Architecture '$ARCH' is supported."
+                echo "Check available packages at: https://github.com/LarinIvan/MagiTrickle_Mod/releases"
+                exit 1
+            fi
+        else
+            echo "2. Updating package for architecture: $ARCH"
+            echo "Installing from: $DIRECT_URL"
+            
+            if $OPKG_BIN install "$DIRECT_URL" --force-checksum --force-reinstall; then
+                echo ""
+                echo "✓ Update successful!"
+            else
+                echo ""
+                echo "Error: Package update failed."
+                echo "Architecture '$ARCH' is supported."
+                echo "Check available packages at: https://github.com/LarinIvan/MagiTrickle_Mod/releases"
+                exit 1
+            fi
+        fi
+        
+        echo "Starting service..."
+        
+        # Enable service (autostart on boot)
+        $INIT_SCRIPT enable
+        
+        # Start the service
+        $INIT_SCRIPT start
+        
         echo ""
-        echo "Success! Package installed successfully."
+        echo "✓ Service started successfully!"
+        
+        ROUTER_IP=$(echo $SSH_CONNECTION | awk '{print $3}')
+        if [ -z "$ROUTER_IP" ]; then
+            ROUTER_IP="your_router_ip"
+        fi
+        
+        echo "Access web interface at: http://${ROUTER_IP}:8080"
     else
+        # Already installed and up to date
         echo ""
-        echo "Error: Package installation failed."
-        echo "Architecture '$ARCH' is supported."
-        echo "Check available packages at: https://github.com/LarinIvan/MagiTrickle_Mod/releases"
-        exit 1
+        echo "✓ System is up to date."
     fi
-
-    
-    echo ""
-    echo "✓ Installation successful!"
-    echo "Starting service..."
-    
-    # Enable service (autostart on boot)
-    $INIT_SCRIPT enable
-    
-    # Start the service
-    $INIT_SCRIPT start
-    
-    echo ""
-    echo "✓ Service started successfully!"
-    
-    # Get router IP address from SSH connection
-    ROUTER_IP=$(echo $SSH_CONNECTION | awk '{print $3}')
-    if [ -z "$ROUTER_IP" ]; then
-        ROUTER_IP="your_router_ip"
-    fi
-    
-    echo "Access web interface at: http://${ROUTER_IP}:8080"
 fi

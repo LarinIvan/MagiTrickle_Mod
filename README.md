@@ -89,7 +89,7 @@ The script will automatically detect your platform (Entware or OpenWRT), add the
 Run the following command in your router console:
 
 ```bash
-wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
+opkg update; opkg install wget-ssl ca-certificates; wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
 ```
 
 The script will automatically install and start the service.
@@ -111,6 +111,7 @@ Configuration is stored in: `/opt/var/lib/magitrickle/config.yaml`
 /opt/etc/init.d/S99magitrickle stop     # Stop service
 /opt/etc/init.d/S99magitrickle restart  # Restart service
 /opt/etc/init.d/S99magitrickle status   # Check status
+opkg remove magitrickle_mod             # Uninstall service
 ```
 
 **OpenWRT:**
@@ -119,7 +120,16 @@ Configuration is stored in: `/opt/var/lib/magitrickle/config.yaml`
 /etc/init.d/magitrickle stop     # Stop service
 /etc/init.d/magitrickle restart  # Restart service
 /etc/init.d/magitrickle status   # Check status
+opkg remove magitrickle_mod      # Uninstall service
 ```
+
+**Manual update (Entware & OpenWRT)**
+
+To update, simply run the installation command again:
+```bash
+wget -O- https://raw.githubusercontent.com/LarinIvan/MagiTrickle_Mod/develop/add_repo.sh | sh
+```
+
 
 ## Rule Types Description
 
