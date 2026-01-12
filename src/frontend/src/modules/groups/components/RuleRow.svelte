@@ -8,6 +8,8 @@
   import { droppable, draggable, dnd_state } from "../../../lib/dnd";
   import { RULE_TYPES, type Rule } from "../../../types";
   import { VALIDATOP_MAP } from "../../../utils/rule-validators";
+  import ConflictIcon from "../../../components/ui/ConflictIcon.svelte";
+  import { conflictsStore, type Conflict } from "../conflicts.svelte";
 
   type Props = {
     rule: Rule;
@@ -24,6 +26,7 @@
       insert?: "before" | "after",
     ) => void;
     onDelete?: (from_group_index: number, from_rule_index: number) => void;
+    onJump?: (conflict: Conflict) => void;
     [key: string]: any;
   };
 
@@ -35,6 +38,7 @@
     group_id,
     onChangeIndex,
     onDelete,
+    onJump,
     ...rest
   }: Props = $props();
 
@@ -179,6 +183,7 @@
 >
   <div
     class="rule-row"
+    class:has-conflict={conflictsStore.getConflictsForRule(rule_id).length > 0}
     role="presentation"
     ondragenter={updateDropIntent}
     ondragover={updateDropIntent}
@@ -203,6 +208,15 @@
     </div>
     <div class="pattern">
       <div class="label">{t("Pattern")}</div>
+      {#if onJump}
+        <div class="pattern-conflict-icon">
+          <ConflictIcon
+            conflicts={conflictsStore.getConflictsForRule(rule_id)}
+            ruleId={rule_id}
+            {onJump}
+          />
+        </div>
+      {/if}
       <input
         type="text"
         placeholder={t("rule pattern...")}
@@ -245,6 +259,10 @@
     border-radius: inherit;
   }
 
+  .rule-row.has-conflict {
+    background-color: rgba(255, 208, 0, 0.15) !important;
+  }
+
   .rule:global(.dragover) {
     outline: 1px solid var(--accent);
     box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--accent) 50%, transparent);
@@ -274,6 +292,19 @@
     align-items: center;
     justify-content: center;
     padding: 0.1rem;
+  }
+
+  .pattern {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .pattern-conflict-icon {
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   .actions {
@@ -340,14 +371,28 @@
       display: block;
     }
     .name,
-    .type,
-    .pattern {
+    .type {
       display: grid;
       grid-template-columns: 3.2rem minmax(0, 1fr);
       align-items: center;
       gap: 0.35rem;
       padding: 0.05rem 0;
       grid-column: 1;
+    }
+
+    .pattern {
+      display: grid;
+      /* Mobile layout: Label | Icon | Input */
+      grid-template-columns: 3.2rem auto minmax(0, 1fr);
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.05rem 0;
+      grid-column: 1;
+    }
+
+    .pattern-conflict-icon {
+      justify-content: flex-start;
+      margin-right: 0.2rem;
     }
     .name .label,
     .pattern .label,

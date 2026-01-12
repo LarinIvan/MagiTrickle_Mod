@@ -143,5 +143,15 @@
   "Search community lists (e.g. 'google', 'telegram')...": "Поиск списков (например 'google', 'telegram')...",
   "Loaded list: ": "Список загружен: ",
   "Failed to download list content": "Не удалось загрузить содержимое списка",
-  "No valid rules to import": "Нет правил для добавления"
+  "No valid rules to import": "Нет правил для добавления",
+  "conflict.found_tooltip": "Найдено конфликтов: {count}",
+  "conflict.found_header": "Найдено конфликтов: {count}",
+  "conflict.table.rule": "Правило",
+  "conflict.table.group": "Группа",
+  "conflict.table.count": "Кол-во",
+  "conflict.table.conflict": "Тип",
+  "conflict.table.action": "Действие",
+  "conflict.type.duplicate": "Дубликат",
+  "conflict.type.overlap": "Пересечение",
+  "conflict.action.go": "Перейти →"
 }

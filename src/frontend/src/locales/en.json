@@ -56,5 +56,15 @@
     "Imported rules: ": "Imported rules: ",
     "Insert a list of IPs or domains, one per line": "Insert a list of IPs or domains, one per line",
     "Import": "Import",
-    "No valid rules to import": "No valid rules to import"
+    "No valid rules to import": "No valid rules to import",
+    "conflict.found_tooltip": "Conflicts: {count}",
+    "conflict.found_header": "Conflicts: {count}",
+    "conflict.table.rule": "Rule",
+    "conflict.table.group": "Group",
+    "conflict.table.count": "Count",
+    "conflict.table.conflict": "Conflict",
+    "conflict.table.action": "Action",
+    "conflict.type.duplicate": "Duplicate",
+    "conflict.type.overlap": "Overlap",
+    "conflict.action.go": "Go →"
 }

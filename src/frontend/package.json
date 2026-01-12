@@ -28,5 +28,8 @@
     "valibot": "^1.0.0-rc.3",
     "vite": "^6.1.0",
     "vite-plugin-minify": "^2.1.0"
+  },
+  "dependencies": {
+    "ipaddr.js": "^2.3.0"
   }
 }

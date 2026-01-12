@@ -35,6 +35,7 @@
   import ExportConfigDialog from "./dialogs/ExportConfigDialog.svelte";
 
   import { groupsStore } from "../../data/groups.svelte";
+  import { conflictsStore, type Conflict } from "./conflicts.svelte";
 
   function handleSaveShortcut(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
@@ -402,6 +403,12 @@
     setTimeout(checkRulesValidityState, 10);
   });
 
+  // Расчет конфликтов при изменении групп
+  $effect(() => {
+    const groups = $state.snapshot(groupsStore.all);
+    untrack(() => conflictsStore.calculate(groups));
+  });
+
   async function addRuleToGroup(group_index: number, rule: Rule, focus = false) {
     groupsStore.all[group_index].rules.unshift(rule);
     showed_limit[group_index]++;
@@ -709,24 +716,16 @@
         if (intersect) {
           newSelection.add(id);
         } else if (!e.ctrlKey) {
-          // If NOT ctrl key, and not intersecting, we might remove it if it wasn't pre-selected?
-          // Complex behavior. Let's stick to "Add to selection" for simplicity first.
-          // Actually, if I just drag box, I expect it to Select ONLY what is in box (unless Ctrl).
           if (!selectedGroupIds.has(id)) {
             // It wasn't selected before, so it shouldn't be now.
           }
         }
       }
     });
-
-    // A simpler approach for "in-flight" selection:
-    // Just track what is currently in box.
-    // But we need to persist what was already selected if Ctrl.
   }
 
   function endSelection() {
     if (isSelecting && selectionBox) {
-      // Finalize selection logic
       const boxRect = {
         left: Math.min(selectionBox.startX, selectionBox.currentX),
         top: Math.min(selectionBox.startY, selectionBox.currentY),
@@ -734,7 +733,6 @@
         bottom: Math.max(selectionBox.startY, selectionBox.currentY),
       };
 
-      // Minimal drag check to avoid clearing on simple clicks handled by click handlers
       const dragDist = Math.hypot(
         selectionBox.currentX - selectionBox.startX,
         selectionBox.currentY - selectionBox.startY,
@@ -782,6 +780,27 @@
     showed_limit = newShowedLimit;
     clearSelection();
     recomputeVisibleGroups();
+  }
+
+  function handleJump(conflict: Conflict) {
+    const gIndex = groupsStore.all.findIndex((g) => g.id === conflict.targetGroupId);
+    if (gIndex !== -1) {
+      open_state.current[conflict.targetGroupId] = true;
+      setTimeout(() => {
+        const el = document.querySelector(`[data-uuid="${conflict.targetGroupId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          setTimeout(() => {
+            const ruleEl = document.querySelector(`[data-uuid="${conflict.targetRule.id}"]`);
+            if (ruleEl) {
+              ruleEl.scrollIntoView({ behavior: "smooth", block: "center" });
+              ruleEl.classList.add("flash-highlight");
+              setTimeout(() => ruleEl.classList.remove("flash-highlight"), 2000);
+            }
+          }, 300);
+        }
+      }, 50);
+    }
   }
 </script>
 
@@ -969,6 +988,8 @@
           {loadMore}
           {searchActive}
           visibleRuleIndices={visible.ruleIndices}
+          onJump={handleJump}
+          allGroups={groupsStore.all}
           on:importRules={() => openImportRulesModal(visible.group_index)}
         />
         <div
@@ -1171,7 +1192,6 @@
     color: color-mix(in oklab, var(--text) 75%, transparent);
   }
 
-  /* Bulk Selection Styles */
   .selection-box {
     position: fixed;
     background: rgba(0, 120, 215, 0.2);
@@ -1212,8 +1232,7 @@
 
   .bulk-header-actions {
     display: flex;
-    align-items: center; /* Ensure vertical center alignment */
-    /* If height discrepancies exist, we might need a fixed height or line-height adjustments */
+    align-items: center;
     height: 100%;
     gap: 0.25rem;
   }
@@ -1232,31 +1251,26 @@
 
   .bulk-select-interface {
     flex: 1;
-    min-width: 0; /* Critical for truncation in flex items */
+    min-width: 0;
     margin: 0;
     margin-right: 0.25rem;
   }
-
-  /* Force correct width on the wrapper div from Select.svelte */
   :global(.bulk-select-interface .select-wrap) {
     width: 100% !important;
     min-width: 0;
-    display: block; /* Ensure it takes width */
+    display: block;
   }
 
-  /* Force truncation on the Select trigger inside */
   .bulk-select-interface :global([data-select-trigger]),
   .bulk-select-interface :global(button[data-select-trigger]) {
     width: 100% !important;
     display: flex !important;
     max-width: 100%;
     min-width: 0;
-    background-color: var(--bg-light-extra) !important; /* Lighter background */
+    background-color: var(--bg-light-extra) !important;
     border: 1px solid var(--border-light);
     color: var(--text);
   }
-
-  /* Target the internal wrapper 'selected' */
   .bulk-select-interface :global(.selected) {
     width: 100% !important;
     max-width: 100% !important;
@@ -1265,7 +1279,6 @@
     justify-content: space-between;
   }
 
-  /* Target the value text */
   .bulk-select-interface :global(.selected-value) {
     flex: 1;
     min-width: 0;
@@ -1298,5 +1311,20 @@
       gap: 0.5rem;
       justify-content: space-between;
     }
+  }
+
+  /* \u0410\u043d\u0438\u043c\u0430\u0446\u0438\u044f \u043f\u043e\u0434\u0441\u0432\u0435\u0442\u043a\u0438 \u0434\u043b\u044f \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u0438 \u043a \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442\u0443\u044e\u0449\u0435\u043c\u0443 \u043f\u0440\u0430\u0432\u0438\u043b\u0443 */
+  @keyframes flash-highlight {
+    0%,
+    100% {
+      background-color: inherit;
+    }
+    50% {
+      background-color: rgba(255, 208, 0, 0.4);
+    }
+  }
+
+  :global(.flash-highlight) {
+    animation: flash-highlight 2s ease-in-out;
   }
 </style>

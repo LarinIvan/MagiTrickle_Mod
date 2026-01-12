@@ -27,6 +27,8 @@
     MoveDown,
   } from "../../../components/ui/icons";
   import RuleRow from "./RuleRow.svelte";
+  import ConflictIcon from "../../../components/ui/ConflictIcon.svelte";
+  import { conflictsStore, type Conflict } from "../conflicts.svelte";
 
   type Props = {
     group: Group;
@@ -49,6 +51,8 @@
     loadMore: (group_index: number) => Promise<void>;
     searchActive?: boolean;
     visibleRuleIndices?: number[] | null;
+    onJump?: (conflict: Conflict) => void;
+    allGroups?: Group[];
     [key: string]: any;
   };
 
@@ -68,6 +72,8 @@
     loadMore,
     searchActive = false,
     visibleRuleIndices = null,
+    onJump,
+    allGroups = [],
     ...rest
   }: Props = $props();
 
@@ -75,8 +81,6 @@
 
   let client_width = $state<number>(Infinity);
   let is_desktop = $derived(client_width > 668);
-
-  // ... (keeping internal Logic) ...
 
   let filteredRuleIndices: number[] | null = $state(null);
   let displayedRulesCount = $state(0);
@@ -186,6 +190,18 @@
         <div class="group-grip" title={t("Drag Group")}>
           <Grip />
         </div>
+
+        {#if onJump}
+          <div class="group-conflict-icon-wrapper">
+            <ConflictIcon
+              conflicts={conflictsStore.getConflictsForGroup(group.id)}
+              ruleId={group.id}
+              {onJump}
+              {allGroups}
+              isGroupContext={true}
+            />
+          </div>
+        {/if}
 
         <input
           type="text"
@@ -337,19 +353,22 @@
             <div class="group-rules-header-column">{t("Pattern")}</div>
             <div class="group-rules-header-column">
               {#if displayedRulesCount > 0}
-                <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
-                  <Switch
-                    class="master-switch"
-                    checked={group.rules.every((r) => r.enable)}
-                    mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
-                    onCheckedChange={(v) => {
-                      const allOn = group.rules.every((r) => r.enable);
-                      const mixed = group.rules.some((r) => r.enable) && !allOn;
-                      const newState = mixed ? true : !allOn; // If mixed -> Turn ON. If all ON -> Turn OFF. If all OFF -> Turn ON.
+                <div class="master-switch-wrapper">
+                  <Tooltip value={t("Toggle All Rules")}>
+                    <Switch
+                      class="master-switch"
+                      checked={group.rules.every((r) => r.enable)}
+                      mixed={group.rules.some((r) => r.enable) &&
+                        !group.rules.every((r) => r.enable)}
+                      onCheckedChange={(v) => {
+                        const allOn = group.rules.every((r) => r.enable);
+                        const mixed = group.rules.some((r) => r.enable) && !allOn;
+                        const newState = mixed ? true : !allOn;
 
-                      group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
-                    }}
-                  />
+                        group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                      }}
+                    />
+                  </Tooltip>
                 </div>
                 <Tooltip value={t("Delete All Rules")}>
                   <Button
@@ -370,19 +389,21 @@
         {/if}
         {#if !is_desktop && displayedRulesCount > 0}
           <div class="mobile-bulk-actions-row">
-            <div class="master-switch-wrapper" title={t("Toggle All Rules")}>
-              <Switch
-                class="master-switch"
-                checked={group.rules.every((r) => r.enable)}
-                mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
-                onCheckedChange={(v) => {
-                  const allOn = group.rules.every((r) => r.enable);
-                  const mixed = group.rules.some((r) => r.enable) && !allOn;
-                  const newState = mixed ? true : !allOn;
+            <div class="master-switch-wrapper">
+              <Tooltip value={t("Toggle All Rules")}>
+                <Switch
+                  class="master-switch"
+                  checked={group.rules.every((r) => r.enable)}
+                  mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
+                  onCheckedChange={(v) => {
+                    const allOn = group.rules.every((r) => r.enable);
+                    const mixed = group.rules.some((r) => r.enable) && !allOn;
+                    const newState = mixed ? true : !allOn;
 
-                  group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
-                }}
-              />
+                    group.rules = group.rules.map((r) => ({ ...r, enable: newState }));
+                  }}
+                />
+              </Tooltip>
             </div>
             <Button
               small
@@ -409,6 +430,7 @@
                 group_id={group.id}
                 onChangeIndex={changeRuleIndex}
                 onDelete={deleteRuleFromGroup}
+                {onJump}
                 style={visible_index % 2 ? "" : "background-color: var(--bg-light)"}
               />
             {/each}
@@ -424,6 +446,7 @@
                   group_id={group.id}
                   onChangeIndex={changeRuleIndex}
                   onDelete={deleteRuleFromGroup}
+                  {onJump}
                   style={rule_index % 2 ? "" : "background-color: var(--bg-light)"}
                 />
               {/each}
@@ -477,8 +500,8 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    flex: 1; /* Allow it to grow */
-    min-width: 0; /* Enable flex shrinkage */
+    flex: 1;
+    min-width: 0;
   }
 
   .group-color {
@@ -500,7 +523,6 @@
     }
   }
 
-  /* Ручка групп */
   .group-grip {
     display: inline-flex;
     align-items: center;
@@ -516,6 +538,11 @@
     color: var(--text);
   }
 
+  .group-conflict-icon-wrapper {
+    margin-left: 0rem;
+    position: relative;
+  }
+
   .group-name {
     & {
       border: none;
@@ -527,8 +554,8 @@
       border-bottom: 1px solid transparent;
       position: relative;
       top: 0.1rem;
-      margin-left: 0.4rem;
-      width: 100%; /* Take full width of parent */
+      margin-left: 0rem;
+      width: 100%;
     }
 
     &:focus-visible {
@@ -623,7 +650,7 @@
       flex-direction: column;
       align-items: start;
       justify-content: center;
-      padding-right: 4rem; /* Reserve space for absolute toggle */
+      padding-right: 4rem;
     }
 
     .group-left {
@@ -649,12 +676,11 @@
     :global(.group-actions > *:nth-child(1)) {
       margin-right: auto;
       width: auto;
-      max-width: 100%; /* Fill available space (already constrained by header padding) */
-      min-width: 0; /* Allow shrinking */
+      max-width: 100%;
+      min-width: 0;
       flex: 0 1 auto;
     }
 
-    /* Enforce truncation on the trigger button */
     :global(.group-actions > *:nth-child(1) [data-select-trigger]) {
       max-width: 100%;
     }
@@ -674,7 +700,6 @@
       }
     }
 
-    /* Mobile Absolute Positioning for Enable Switch */
     :global(.group-enable-switch) {
       position: absolute;
       top: 0.5rem;
@@ -701,27 +726,23 @@
     }
   }
 
-  /* Master Switch Styles */
   :global(.master-switch[data-state="checked"]) {
-    background-color: #22c55e !important; /* Green-500 */
+    background-color: #22c55e !important;
   }
 
   :global(.master-switch[data-state="unchecked"]) {
-    background-color: #ef4444 !important; /* Red-500 */
+    background-color: #ef4444 !important;
   }
 
   :global(.master-switch[data-mixed="true"]) {
-    background-color: #f97316 !important; /* Orange-500 */
+    background-color: #f97316 !important;
   }
 
-  /* Alignment fix for the last column (Right align to match RuleRow actions) */
   .group-rules-header-column:last-child {
     justify-content: end;
-    /* padding-right: 3.5rem; */ /* Removed manual padding, now using content (switch + button) to align */
-    gap: 0.5rem; /* Match gap in RuleRow .actions */
+    gap: 0.5rem;
   }
 
-  /* Delete All Rules Button - Red variant */
   :global(.delete-all-rules-btn) {
     color: var(--red) !important;
     position: relative;
