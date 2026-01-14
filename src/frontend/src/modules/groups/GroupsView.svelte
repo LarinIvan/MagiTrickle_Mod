@@ -39,7 +39,7 @@
 
   function handleSaveShortcut(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
-      if (counter > 0 && valid_rules) {
+      if (canSave) {
         event.preventDefault();
         saveChanges();
       }
@@ -52,6 +52,7 @@
   let showed_limit: number[] = $state([]);
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
+  let canSave = $derived(counter > 0 && valid_rules);
   let open_state = persistedState<Record<string, boolean>>("group_open_state", {});
 
   let importRulesModal = $state<{ open: boolean; groupIndex: number | null }>({
@@ -393,6 +394,17 @@
 
   onDestroy(() => {
     window.removeEventListener("keydown", handleSaveShortcut);
+  });
+
+  $effect(() => {
+    if (typeof window === "undefined" || !canSave) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   });
 
   $effect(() => {
@@ -826,7 +838,7 @@
       />
     </div>
     <div class="group-controls-actions">
-      {#if counter > 0 && valid_rules}
+      {#if canSave}
         <div transition:scale>
           <Tooltip value={t("Save Changes")}>
             <Button onclick={saveChanges} id="save-changes">
