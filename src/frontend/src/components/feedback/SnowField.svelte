@@ -245,7 +245,6 @@
         flakes.push(createFlake());
       }
     }
-
   }
 
   function updateWind(dt: number) {
@@ -389,6 +388,22 @@
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      stop();
+    };
+
+    const handleContextRestored = () => {
+      initGL();
+      if (gl) {
+        resize();
+        start();
+      }
+    };
+
+    canvas.addEventListener("webglcontextlost", handleContextLost);
+    canvas.addEventListener("webglcontextrestored", handleContextRestored);
+
     resize();
     start();
 
@@ -396,6 +411,8 @@
       stop();
       window.removeEventListener("resize", handleResize);
       document.removeEventListener("visibilitychange", handleVisibility);
+      canvas?.removeEventListener("webglcontextlost", handleContextLost);
+      canvas?.removeEventListener("webglcontextrestored", handleContextRestored);
       if ("removeEventListener" in motionMedia) {
         motionMedia.removeEventListener("change", updateMotion);
       } else {
