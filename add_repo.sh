@@ -103,20 +103,30 @@ elif [ "$IS_OPENWRT" -eq 1 ]; then
     REPO_CONF_CONTENT="src/gz magitrickle_mod $REPO_URL"
 fi
 
-# --- 1. Setup Repository ---
-echo "Setting up repository..."
-mkdir -p "$CONF_DIR"
+# --- 1. Setup Repository for Entware / Clean up for OpenWRT ---
+if [ "$IS_OPENWRT" -eq 1 ]; then
+    # OpenWRT: Remove old repository config if exists
+    if [ -f "$CONF_FILE" ]; then
+        rm "$CONF_FILE"
+        echo "Removed old repository config: $CONF_FILE"
+    fi
+elif [ "$IS_ENTWARE" -eq 1 ]; then
+    echo "Setting up repository..."
+    mkdir -p "$CONF_DIR"
 
-echo "$REPO_CONF_CONTENT" > "$CONF_FILE"
-echo "Repository configured in $CONF_FILE"
-echo ""
+    echo "$REPO_CONF_CONTENT" > "$CONF_FILE"
+    echo "Repository configured in $CONF_FILE"
+    echo ""
+fi
 
 # --- 2. Installation / Update Logic ---
 
 if [ "$NEED_UPDATE" -eq 1 ]; then
-    echo "Updating package lists..."
-
-    $OPKG_BIN update 2>&1 | awk '!/has no valid architecture/'
+    # Update package lists only for Entware (OpenWRT uses direct download)
+    if [ "$IS_ENTWARE" -eq 1 ]; then
+        echo "Updating package lists..."
+        $OPKG_BIN update 2>&1 | awk '!/has no valid architecture/'
+    fi
     
     INSTALL_SUCCESS=0
     
