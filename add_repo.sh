@@ -99,10 +99,8 @@ elif [ "$IS_OPENWRT" -eq 1 ]; then
     INIT_SCRIPT="/etc/init.d/magitrickle"
     PLATFORM_NAME="openwrt"
     
-    # OpenWRT config content - explicitly disable signature check for this feed
-    REPO_CONF_CONTENT="src/gz magitrickle_mod $REPO_URL
-option check_signature 0
-option no_check_certificate 1"
+    # OpenWRT config content
+    REPO_CONF_CONTENT="src/gz magitrickle_mod $REPO_URL"
 fi
 
 # --- 1. Setup Repository ---
@@ -129,41 +127,69 @@ if [ "$NEED_UPDATE" -eq 1 ]; then
         # --- FRESH INSTALL ---
         echo "Installing magitrickle_mod (Fresh Install)..."
         
-        echo "Attempt 1: Installing from Repository..."
-        if $OPKG_BIN install magitrickle_mod 2>&1 | awk '!/has no valid architecture/'; then
-            INSTALL_SUCCESS=1
-            echo "✓ Repository installation successful!"
-        else
-            echo "⚠ Repository installation failed."
-            echo "Attempt 2: Fallback to Direct Download..."
-            echo "Source: $DIRECT_URL"
-            
-            if $OPKG_BIN install "$DIRECT_URL" --force-checksum; then
+        if [ "$IS_OPENWRT" -eq 1 ]; then
+            # OpenWRT: Direct download only
+            echo "Using direct package download for OpenWRT..."
+            if $OPKG_BIN install "$DIRECT_URL" --force-checksum --no-check-certificate; then
                 INSTALL_SUCCESS=1
                 echo "✓ Direct installation successful!"
             else
                 echo "❌ Installation failed."
+                INSTALL_SUCCESS=0
+            fi
+        else
+            # Entware: Try repository first, then fallback to direct URL
+            echo "Attempt 1: Installing from Repository..."
+            if $OPKG_BIN install magitrickle_mod 2>&1 | awk '!/has no valid architecture/'; then
+                INSTALL_SUCCESS=1
+                echo "✓ Repository installation successful!"
+            else
+                echo "⚠ Repository installation failed."
+                echo "Attempt 2: Fallback to Direct Download..."
+                echo "Source: $DIRECT_URL"
+                
+                if $OPKG_BIN install "$DIRECT_URL" --force-checksum; then
+                    INSTALL_SUCCESS=1
+                    echo "✓ Direct installation successful!"
+                else
+                    echo "❌ Installation failed."
+                    INSTALL_SUCCESS=0
+                fi
             fi
         fi
     else
         # --- UPGRADE ---
         echo "Upgrading magitrickle_mod (Update)..."
         
-        echo "Attempt 1: Upgrading from Repository..."
-        if $OPKG_BIN upgrade magitrickle_mod 2>&1 | awk '!/has no valid architecture/'; then
-             INSTALL_SUCCESS=1
-             echo "✓ Repository upgrade successful!"
+        if [ "$IS_OPENWRT" -eq 1 ]; then
+            # OpenWRT: Direct download with reinstall
+            echo "Using direct package download for OpenWRT..."
+            if $OPKG_BIN install "$DIRECT_URL" --force-checksum --no-check-certificate --force-reinstall; then
+                INSTALL_SUCCESS=1
+                echo "✓ Direct update successful!"
+            else
+                echo "❌ Update failed."
+                INSTALL_SUCCESS=0
+            fi
         else
-             echo "⚠ Repository upgrade failed."
-             echo "Attempt 2: Fallback to Direct Download..."
-             echo "Source: $DIRECT_URL"
-             
-             if $OPKG_BIN install "$DIRECT_URL" --force-checksum --force-reinstall; then
-                 INSTALL_SUCCESS=1
-                 echo "✓ Direct update successful!"
-             else
-                 echo "❌ Update failed."
-             fi
+            # Entware: Try upgrade first, then fallback to direct URL  
+            echo "Attempt 1: Upgrading from Repository..."
+            if $OPKG_BIN upgrade magitrickle_mod 2>&1 | awk '!/has no valid architecture/'; then
+                INSTALL_SUCCESS=1
+                echo "✓ Repository upgrade successful!"
+            else
+                echo "⚠ Repository upgrade failed."
+                echo "Attempt 2: Fallback to Direct Download..."
+                echo "Source: $DIRECT_URL"
+                
+                if $OPKG_BIN install "$DIRECT_URL" --force-checksum --force-reinstall; then
+                    INSTALL_SUCCESS=1
+                    echo "✓ Direct update successful!"
+                else
+                    echo "❌ Update failed."
+                    INSTALL_SUCCESS=0
+                fi
+            fi
         fi
     fi
 
