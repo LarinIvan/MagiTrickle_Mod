@@ -7,7 +7,7 @@
   import { aliases } from "../../data/aliases.svelte";
   // import LogsPanel from "../../modules/logs/LogsPanel.svelte";
   import Overlay from "../feedback/Overlay.svelte";
-  import SnowField from "../feedback/SnowField.svelte";
+  // import SnowField from "../feedback/SnowField.svelte";
   import Toast from "../feedback/Toast.svelte";
   import ScrollToTop from "../feedback/ScrollToTop.svelte";
   import ConsoleWindow from "../console/ConsoleWindow.svelte";
@@ -31,7 +31,7 @@
 <Overlay />
 <ScrollToTop />
 <ConsoleWindow />
-<SnowField variant="front" />
+<!-- <SnowField variant="front" /> -->
 
 <main>
   <Tabs.Root bind:value={active_tab}>
