@@ -286,13 +286,14 @@ class ConflictsManager {
             const isIntraGroup = conflict.sourceGroupId === conflict.targetGroupId
 
             if (isIntraGroup) {
-                const key = [conflict.sourceRule.id, conflict.targetRule.id].sort().join('-')
+                const key = [conflict.sourceRule.id, conflict.targetRule.id].sort().join(`-`)
 
                 if (!seenIntraGroup.has(key)) {
                     seenIntraGroup.add(key)
                     unique.push(conflict)
                 }
-            } else {
+            }
+            else {
                 const key = `${conflict.targetGroupId}:${conflict.targetRule.rule}`
 
                 if (!seenInterGroup.has(key)) {
@@ -303,6 +304,78 @@ class ConflictsManager {
         }
 
         return unique
+    }
+
+    get hasAnyConflicts(): boolean {
+        return Object.keys(this.groupByRule).length > 0
+    }
+
+    getAllConflicts(): Conflict[] {
+        const seen = new Set<string>()
+        const result: Conflict[] = []
+
+        for (const ruleId in this.groupByRule) {
+            for (const conflict of this.groupByRule[ruleId]) {
+                const key = [conflict.sourceRule.id, conflict.targetRule.id].sort().join(`-`)
+                if (!seen.has(key)) {
+                    seen.add(key)
+                    result.push(conflict)
+                }
+            }
+        }
+
+        return result
+    }
+
+    getConflictClusters(): { rules: Array<{ rule: Rule; groupId: string; groupName: string }> }[] {
+        const conflicts = this.getAllConflicts()
+        if (conflicts.length === 0) return []
+
+        const ruleMap = new Map<string, { rule: Rule; groupId: string; groupName: string }>()
+
+        for (const c of conflicts) {
+            if (!ruleMap.has(c.sourceRule.id)) {
+                ruleMap.set(c.sourceRule.id, {
+                    rule: c.sourceRule,
+                    groupId: c.sourceGroupId,
+                    groupName: ``
+                })
+            }
+            if (!ruleMap.has(c.targetRule.id)) {
+                ruleMap.set(c.targetRule.id, {
+                    rule: c.targetRule,
+                    groupId: c.targetGroupId,
+                    groupName: c.targetGroupName
+                })
+            }
+        }
+
+        const parent = new Map<string, string>()
+
+        const find = (x: string): string => {
+            if (!parent.has(x)) parent.set(x, x)
+            if (parent.get(x) !== x) parent.set(x, find(parent.get(x)!))
+            return parent.get(x)!
+        }
+
+        const union = (a: string, b: string) => {
+            const ra = find(a)
+            const rb = find(b)
+            if (ra !== rb) parent.set(ra, rb)
+        }
+
+        for (const c of conflicts) {
+            union(c.sourceRule.id, c.targetRule.id)
+        }
+        const clusters = new Map<string, Array<{ rule: Rule; groupId: string; groupName: string }>>()
+
+        for (const [ruleId, info] of ruleMap) {
+            const root = find(ruleId)
+            if (!clusters.has(root)) clusters.set(root, [])
+            clusters.get(root)!.push(info)
+        }
+
+        return Array.from(clusters.values()).map(rules => ({ rules }))
     }
 }
 

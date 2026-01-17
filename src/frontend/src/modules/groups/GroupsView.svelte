@@ -23,6 +23,8 @@
     MoveUp,
     MoveDown,
   } from "../../components/ui/icons";
+  import { AlertTriangle } from "lucide-svelte";
+  import GlobalConflictsModal from "../../components/ui/GlobalConflictsModal.svelte";
   import { t } from "../../data/locale.svelte";
   import { droppable } from "../../lib/dnd";
 
@@ -53,7 +55,9 @@
   let counter = $state(-2); // skip first update on init
   let valid_rules = $state(true);
   let canSave = $derived(counter > 0 && valid_rules);
-  let open_state = persistedState<Record<string, boolean>>("group_open_state", {});
+  let open_state = persistedState<Record<string, boolean>>(`group_open_state`, {});
+  let isGlobalConflictsOpen = $state(false);
+  let hasAnyConflicts = $derived(conflictsStore.hasAnyConflicts);
 
   let importRulesModal = $state<{ open: boolean; groupIndex: number | null }>({
     open: false,
@@ -794,24 +798,129 @@
     recomputeVisibleGroups();
   }
 
-  function handleJump(conflict: Conflict) {
+  async function handleJump(conflict: Conflict) {
     const gIndex = groupsStore.all.findIndex((g) => g.id === conflict.targetGroupId);
-    if (gIndex !== -1) {
-      open_state.current[conflict.targetGroupId] = true;
-      setTimeout(() => {
-        const el = document.querySelector(`[data-uuid="${conflict.targetGroupId}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          setTimeout(() => {
-            const ruleEl = document.querySelector(`[data-uuid="${conflict.targetRule.id}"]`);
-            if (ruleEl) {
-              ruleEl.scrollIntoView({ behavior: "smooth", block: "center" });
-              ruleEl.classList.add("flash-highlight");
-              setTimeout(() => ruleEl.classList.remove("flash-highlight"), 2000);
-            }
-          }, 300);
+    if (gIndex === -1) return;
+
+    const targetGroup = groupsStore.all[gIndex];
+    const ruleIndex = targetGroup.rules.findIndex((r) => r.id === conflict.targetRule.id);
+    if (ruleIndex === -1) return;
+
+    open_state.current[conflict.targetGroupId] = true;
+
+    const loadUpperGroups = async (): Promise<void> => {
+      let hasMoreToLoad = true;
+      while (hasMoreToLoad) {
+        hasMoreToLoad = false;
+        for (let i = 0; i < gIndex; i++) {
+          const group = groupsStore.all[i];
+          const isOpen = open_state.current[group.id];
+          if (isOpen && showed_limit[i] < group.rules.length) {
+            const nextLimit = Math.min(showed_limit[i] + INCREMENT_RULES_LIMIT, group.rules.length);
+            showed_limit[i] = nextLimit;
+            hasMoreToLoad = showed_limit[i] < group.rules.length;
+          }
         }
-      }, 50);
+        if (hasMoreToLoad) {
+          showed_limit = [...showed_limit];
+          await tick();
+          await new Promise((r) => setTimeout(r, 10));
+        }
+      }
+      showed_limit = [...showed_limit];
+      await tick();
+    };
+
+    await loadUpperGroups();
+
+    const groupEl = document.querySelector(`[data-uuid="${conflict.targetGroupId}"]`);
+    if (groupEl) {
+      groupEl.scrollIntoView({ behavior: `smooth`, block: `start` });
+    }
+
+    const existingRuleEl = document.querySelector(`[data-uuid="${conflict.targetRule.id}"]`);
+    if (existingRuleEl) {
+      await new Promise((r) => setTimeout(r, 300));
+      existingRuleEl.scrollIntoView({ behavior: `smooth`, block: `center` });
+      existingRuleEl.classList.add(`flash-highlight`);
+      setTimeout(() => existingRuleEl.classList.remove(`flash-highlight`), 2000);
+      return;
+    }
+
+    const startTime = Date.now();
+    const maxWaitTime = 10000;
+
+    const scrollToRule = async () => {
+      const ruleEl = document.querySelector(`[data-uuid="${conflict.targetRule.id}"]`);
+      if (ruleEl) {
+        ruleEl.scrollIntoView({ behavior: `smooth`, block: `center` });
+        ruleEl.classList.add(`flash-highlight`);
+        setTimeout(() => ruleEl.classList.remove(`flash-highlight`), 2000);
+        return;
+      }
+
+      if (Date.now() - startTime < maxWaitTime) {
+        const currentLimit = showed_limit[gIndex];
+        if (currentLimit < targetGroup.rules.length) {
+          const nextLimit = Math.min(
+            currentLimit + INCREMENT_RULES_LIMIT,
+            Math.max(ruleIndex + 10, currentLimit + INCREMENT_RULES_LIMIT),
+          );
+          showed_limit[gIndex] = Math.min(nextLimit, targetGroup.rules.length);
+          showed_limit = [...showed_limit];
+        }
+
+        await tick();
+        setTimeout(scrollToRule, 50);
+      }
+    };
+
+    setTimeout(scrollToRule, 100);
+  }
+
+  function handleGlobalToggleRule(groupId: string, ruleId: string, enabled: boolean) {
+    const groupIndex = groupsStore.all.findIndex((g) => g.id === groupId);
+    if (groupIndex === -1) return;
+
+    const ruleIndex = groupsStore.all[groupIndex].rules.findIndex((r) => r.id === ruleId);
+    if (ruleIndex === -1) return;
+
+    groupsStore.all[groupIndex].rules[ruleIndex].enable = enabled;
+  }
+
+  function handleGlobalDeleteRule(groupId: string, ruleId: string) {
+    const groupIndex = groupsStore.all.findIndex((g) => g.id === groupId);
+    if (groupIndex === -1) return;
+
+    const ruleIndex = groupsStore.all[groupIndex].rules.findIndex((r) => r.id === ruleId);
+    if (ruleIndex === -1) return;
+
+    groupsStore.all[groupIndex].rules.splice(ruleIndex, 1);
+    groupsStore.all = [...groupsStore.all];
+  }
+
+  async function handleJumpToRuleById(groupId: string, ruleId: string) {
+    const gIndex = groupsStore.all.findIndex((g) => g.id === groupId);
+    if (gIndex === -1) return;
+
+    const targetGroup = groupsStore.all[gIndex];
+    const ruleIndex = targetGroup.rules.findIndex((r) => r.id === ruleId);
+    if (ruleIndex === -1) return;
+
+    open_state.current[groupId] = true;
+
+    if (ruleIndex >= showed_limit[gIndex]) {
+      showed_limit[gIndex] = ruleIndex + 10;
+      showed_limit = [...showed_limit];
+    }
+
+    await tick();
+
+    const ruleEl = document.querySelector(`[data-uuid="${ruleId}"]`);
+    if (ruleEl) {
+      ruleEl.scrollIntoView({ behavior: `smooth`, block: `center` });
+      ruleEl.classList.add(`flash-highlight`);
+      setTimeout(() => ruleEl.classList.remove(`flash-highlight`), 2000);
     }
   }
 </script>
@@ -838,40 +947,53 @@
       />
     </div>
     <div class="group-controls-actions">
-      {#if canSave}
-        <div transition:scale>
-          <Tooltip value={t("Save Changes")}>
-            <Button onclick={saveChanges} id="save-changes">
-              <Save size={22} />
-            </Button>
-          </Tooltip>
-        </div>
-      {/if}
-      <Tooltip value={t("Export Config")}>
-        <Button onclick={exportConfig}>
-          <Download size={22} />
-        </Button>
-      </Tooltip>
-      <Tooltip value={t("Import Config")}>
-        <Button
-          onclick={() => {
-            importConfigModal = { open: true, groups: [], fileName: "" };
-          }}
-        >
-          <Upload size={22} />
-        </Button>
-      </Tooltip>
-      <div class="separator"></div>
-      <Tooltip value={t("Collapse All")}>
-        <Button onclick={collapseAll}><CollapseAll size="22" /></Button>
-      </Tooltip>
-      <Tooltip value={t("Expand All")}>
-        <Button onclick={expandAll}><ExpandAll size="22" /></Button>
-      </Tooltip>
-      <div class="separator"></div>
-      <Tooltip value={t("Add Group")}>
-        <Button onclick={addGroup}><Add size="22" /></Button>
-      </Tooltip>
+      <div class="toolbar-btn" class:hidden={!hasAnyConflicts}>
+        <Tooltip value={t(`conflict.global_tooltip`)}>
+          <Button onclick={() => (isGlobalConflictsOpen = true)} class="conflicts-btn">
+            <AlertTriangle size={22} />
+          </Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn" class:hidden={!canSave}>
+        <Tooltip value={t(`Save Changes`)}>
+          <Button onclick={saveChanges} id="save-changes">
+            <Save size={22} />
+          </Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn">
+        <Tooltip value={t("Export Config")}>
+          <Button onclick={exportConfig}>
+            <Download size={22} />
+          </Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn">
+        <Tooltip value={t("Import Config")}>
+          <Button
+            onclick={() => {
+              importConfigModal = { open: true, groups: [], fileName: "" };
+            }}
+          >
+            <Upload size={22} />
+          </Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn">
+        <Tooltip value={t("Collapse All")}>
+          <Button onclick={collapseAll}><CollapseAll size="22" /></Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn">
+        <Tooltip value={t("Expand All")}>
+          <Button onclick={expandAll}><ExpandAll size="22" /></Button>
+        </Tooltip>
+      </div>
+      <div class="toolbar-btn">
+        <Tooltip value={t("Add Group")}>
+          <Button onclick={addGroup}><Add size="22" /></Button>
+        </Tooltip>
+      </div>
     </div>
   </div>
 
@@ -1077,6 +1199,15 @@
   on:export={handleExport}
 />
 
+<GlobalConflictsModal
+  bind:open={isGlobalConflictsOpen}
+  groups={groupsStore.all}
+  onClose={() => (isGlobalConflictsOpen = false)}
+  onToggleRule={handleGlobalToggleRule}
+  onDeleteRule={handleGlobalDeleteRule}
+  onJump={handleJumpToRuleById}
+/>
+
 <style>
   .group-wrapper {
     position: relative;
@@ -1089,13 +1220,6 @@
 
   .group-wrapper:last-of-type {
     margin-bottom: 1rem;
-  }
-
-  .separator {
-    width: 1px;
-    height: 24px;
-    background: color-mix(in oklab, var(--text) 20%, transparent);
-    margin: 0 0.25rem;
   }
 
   .group-drop-slot {
@@ -1188,12 +1312,23 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .toolbar-btn {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .toolbar-btn.hidden {
+    display: none;
   }
 
   @media (max-width: 700px) {
     .group-controls-actions {
       width: 100%;
       justify-content: flex-end;
+      gap: 0.25rem;
     }
   }
 
@@ -1325,7 +1460,6 @@
     }
   }
 
-  /* \u0410\u043d\u0438\u043c\u0430\u0446\u0438\u044f \u043f\u043e\u0434\u0441\u0432\u0435\u0442\u043a\u0438 \u0434\u043b\u044f \u043d\u0430\u0432\u0438\u0433\u0430\u0446\u0438\u0438 \u043a \u043a\u043e\u043d\u0444\u043b\u0438\u043a\u0442\u0443\u044e\u0449\u0435\u043c\u0443 \u043f\u0440\u0430\u0432\u0438\u043b\u0443 */
   @keyframes flash-highlight {
     0%,
     100% {
@@ -1338,5 +1472,9 @@
 
   :global(.flash-highlight) {
     animation: flash-highlight 2s ease-in-out;
+  }
+
+  :global(.conflicts-btn) {
+    color: #ffd000 !important;
   }
 </style>
