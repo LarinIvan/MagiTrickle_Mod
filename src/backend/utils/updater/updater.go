@@ -31,7 +31,7 @@ func CheckForUpdates() (string, error) {
 	log.Info().Msg("Fetching latest version from GitHub API...")
 
 	apiCmd := exec.Command("sh", "-c",
-		"wget -qO- https://api.github.com/repos/LarinIvan/MagiTrickle_Mod/releases/latest | grep '\"tag_name\"' | head -n1 | cut -d'\"' -f4")
+		`wget -qO- -U "MagiTrickle" https://api.github.com/repos/LarinIvan/MagiTrickle_Mod/releases/latest | awk -F'"' '{for(i=1;i<=NF;i++)if($i=="tag_name"){print $(i+2);exit}}'`)
 	apiOut, err := apiCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch latest version from GitHub API: %w", err)

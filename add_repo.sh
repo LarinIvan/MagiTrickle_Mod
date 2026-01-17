@@ -59,15 +59,16 @@ REPO_URL="https://github.com/LarinIvan/MagiTrickle_Mod/releases/latest/download"
 # Version Check
 echo "Checking versions..."
 INSTALLED_VERSION=$($OPKG_BIN list-installed magitrickle_mod | awk '{print $3}')
+LATEST_VERSION=$(wget -qO- -U "MagiTrickle" https://api.github.com/repos/LarinIvan/MagiTrickle_Mod/releases/latest | awk -F'"' '{for(i=1;i<=NF;i++)if($i=="tag_name"){print $(i+2);exit}}')
 
 NEED_UPDATE=0
 
 if [ -z "$INSTALLED_VERSION" ]; then
-    echo "Package not installed. Installing..."
+    echo "Package not installed."
+    echo "Latest version available: $LATEST_VERSION"
+    echo "Installing..."
     NEED_UPDATE=1
 else
-    LATEST_VERSION=$(wget -qO- https://api.github.com/repos/LarinIvan/MagiTrickle_Mod/releases/latest | grep '"tag_name"' | head -n1 | cut -d'"' -f4)
-    
     CLEAN_INSTALLED_VERSION=$(echo "$INSTALLED_VERSION" | sed 's/-[0-9]*$//')
 
     echo "Latest version: $LATEST_VERSION"
@@ -124,6 +125,8 @@ fi
 if [ "$NEED_UPDATE" -eq 1 ]; then
     # Update package lists only for Entware (OpenWRT uses direct download)
     if [ "$IS_ENTWARE" -eq 1 ]; then
+        # echo "Clearing opkg cache..."
+        # rm -f /opt/var/opkg-lists/magitrickle_mod
         echo "Updating package lists..."
         $OPKG_BIN update 2>&1 | awk '!/has no valid architecture/'
     fi
