@@ -420,19 +420,21 @@
         {/if}
         <div class="group-rules">
           {#if Array.isArray(filteredRuleIndices)}
-            {#each filteredRuleIndices as rule_index, visible_index (group.rules[rule_index].id)}
-              <RuleRow
-                key={group.rules[rule_index].id}
-                bind:rule={group.rules[rule_index]}
-                {rule_index}
-                {group_index}
-                rule_id={group.rules[rule_index].id}
-                group_id={group.id}
-                onChangeIndex={changeRuleIndex}
-                onDelete={deleteRuleFromGroup}
-                {onJump}
-                style={visible_index % 2 ? "" : "background-color: var(--bg-light)"}
-              />
+            {#each filteredRuleIndices as rule_index, visible_index (group.rules[rule_index]?.id ?? `missing-${visible_index}`)}
+              {#if group.rules[rule_index]}
+                <RuleRow
+                  key={group.rules[rule_index].id}
+                  bind:rule={group.rules[rule_index]}
+                  {rule_index}
+                  {group_index}
+                  rule_id={group.rules[rule_index].id}
+                  group_id={group.id}
+                  onChangeIndex={changeRuleIndex}
+                  onDelete={deleteRuleFromGroup}
+                  {onJump}
+                  style={visible_index % 2 ? "" : "background-color: var(--bg-light)"}
+                />
+              {/if}
             {/each}
           {:else}
             <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>

@@ -146,12 +146,17 @@
   "No valid rules to import": "Нет правил для добавления",
   "conflict.found_tooltip": "Найдено конфликтов: {count}",
   "conflict.found_header": "Найдено конфликтов: {count}",
+  "conflict.global_tooltip": "Показать все конфликты",
+  "conflict.global_header": "Все конфликты правил",
   "conflict.table.rule": "Правило",
   "conflict.table.group": "Группа",
   "conflict.table.count": "Кол-во",
   "conflict.table.conflict": "Тип",
+  "conflict.table.type": "Тип",
   "conflict.table.action": "Действие",
   "conflict.type.duplicate": "Дубликат",
   "conflict.type.overlap": "Пересечение",
-  "conflict.action.go": "Перейти →"
+  "conflict.action.go": "Перейти →",
+  "conflict.none": "Конфликтов не найдено",
+  "Delete": "Удалить"
 }
