@@ -45,6 +45,8 @@ The principle of operation operates by intercepting the main DNS server via an i
 *   **Speedtest**: Built-in utility for measuring connection speed directly from the router
     *   **Interface Binding**: Ability to test speed **through a specific interface** (e.g., inside a VPN tunnel), ignoring the default gateway
 *   **Lists Import**: Built-in search and download of popular community lists (e.g. Google, Telegram, Apple) directly from `v2fly/domain-list-community`
+*   **Rule Conflicts**: Automatic detection of conflicts between rules (overlapping domains, IP subnets, nested ranges)
+    *   Ability to disable or delete conflicting rules in the conflicts window, as well as quick navigation to the rule
 *   **Export/Import Config**: Enhanced system for exporting/importing group configurations with support for selective export
 *   **Auto-Update**: System for automatic checking and installing mod updates directly from the web interface
     *   Notifications about new versions
@@ -64,6 +66,10 @@ The principle of operation operates by intercepting the main DNS server via an i
 | Interfaces | Speedtest |
 |:---:|:---:|
 | <img src="img/screenshot_interfaces.png" width="400"/> | <img src="img/screenshot_speedtest.png" width="400"/> |
+
+| Lists Import | Rule Conflicts |
+|:---:|:---:|
+| <img src="img/screenshot_import_rule_list.png" width="400"/> | <img src="img/screenshot_conflicts.png" width="400"/> |
 
 | Settings | |
 |:---:|:---:|
