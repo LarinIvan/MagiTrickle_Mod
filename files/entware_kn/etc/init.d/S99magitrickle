@@ -7,6 +7,9 @@ PREARGS=""
 DESC="MagiTrickle Daemon"
 PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 UPTIME_MAX_BORDER=300
+WATCHDOG=1
+WATCHDOG_INTERVAL=30
+STOP_MARKER="/tmp/magitrickle.stop"
 
 ACTION=$1
 CALLER=$2
@@ -26,24 +29,46 @@ get_uptime() {
     cut -d. -f1 /proc/uptime
 }
 
-startup_loop() {
+watchdog_loop() {
   $PRECMD > /dev/null 2>&1
   STEP=5
   COUNTER=0
+  BOOT_MODE=1
   while :; do
-    if [ "`get_uptime`" -gt "$UPTIME_MAX_BORDER" ]; then
-      break
+    if [ "$BOOT_MODE" -eq 1 ]; then
+      if [ "`get_uptime`" -gt "$UPTIME_MAX_BORDER" ]; then
+        BOOT_MODE=0
+      fi
     fi
+
+    if [ "$WATCHDOG" -eq 0 ]; then
+      if [ "$BOOT_MODE" -eq 0 ]; then
+        break
+      fi
+    fi
+
     if [ -n "`pidof $PROC`" ]; then
-      sleep $STEP
+      if [ "$BOOT_MODE" -eq 1 ]; then
+         sleep $STEP
+      elif [ "$WATCHDOG" -eq 1 ]; then
+        sleep $WATCHDOG_INTERVAL
+      else
+        sleep $STEP
+      fi
       continue
     fi
 
-    logger "Starting $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
-    $PROC > /dev/null 2>&1 &
+    if [ -f "$STOP_MARKER" ]; then
+      break
+    fi
+
+    logger "Watchdog: Starting $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
+    
+    start nwd
+
     sleep $STEP
     if [ -z "`pidof $PROC`" ]; then
-      logger "Failed to start $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
+      logger "Watchdog: Failed to start $DESC from $CALLER (Attempt #`expr $COUNTER + 1`)."
     fi
     COUNTER=`expr $COUNTER + 1`
   done
@@ -58,8 +83,12 @@ startup_loop() {
 }
 
 start() {
+  ARG=$1
   [ "$CRITICAL" != "yes" -a "$CALLER" = "cron" ] && return 7
   [ "$ENABLED" != "yes" ] && return 8
+
+  rm -f "$STOP_MARKER"
+
   echo -e -n "$ansi_white Starting $DESC... $ansi_std"
 
   if [ -n "`pidof $PROC`" ]; then
@@ -67,10 +96,14 @@ start() {
     return 0
   fi
 
-  if [ "`get_uptime`" -le "$UPTIME_MAX_BORDER" ]; then
-    echo -e "            $ansi_yellow in loop (until uptime $UPTIME_MAX_BORDER)... $ansi_std"
-    startup_loop &
-    return 0
+  if [ "$ARG" != "nwd" ]; then
+    if [ "$WATCHDOG" -eq 1 ]; then
+        watchdog_loop &
+    elif [ "`get_uptime`" -le "$UPTIME_MAX_BORDER" ]; then
+        echo -e "            $ansi_yellow in loop (until uptime $UPTIME_MAX_BORDER)... $ansi_std"
+        watchdog_loop &
+        return 0
+    fi
   fi
 
   $PRECMD > /dev/null 2>&1
@@ -95,6 +128,8 @@ start() {
 }
 
 stop() {
+  touch "$STOP_MARKER"
+
   echo -e -n "$ansi_white Shutting down $PROC... $ansi_std"
   killall $PROC 2>/dev/null
   COUNTER=0
