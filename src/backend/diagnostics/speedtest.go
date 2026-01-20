@@ -1,6 +1,7 @@
 package diagnostics
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -60,9 +61,13 @@ func (st *SpeedTracker) GetAndReset() int64 {
 type MonitoringTransport struct {
 	Transport http.RoundTripper
 	Tracker   *SpeedTracker
+	Context   context.Context
 }
 
 func (m *MonitoringTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if m.Context != nil {
+		req = req.WithContext(m.Context)
+	}
 	// Wrap Request Body (Upload)
 	if req.Body != nil {
 		req.Body = &CountingReadCloser{
@@ -106,7 +111,7 @@ func (c *CountingReadCloser) Close() error {
 
 // RunSpeedtestStream performs a speedtest and streams results via SSE
 // It expects w to be an http.ResponseWriter that supports flushing
-func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, parallelLoss bool) {
+func RunSpeedtestStream(ctx context.Context, w http.ResponseWriter, ifaceName string, serverID int, parallelLoss bool) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
@@ -141,7 +146,7 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 	log.Info().Str("interface", ifaceName).Msg("Starting streaming speedtest")
 
 	tracker := &SpeedTracker{}
-	client := createMonitoringClient(ifaceName, tracker)
+	client := createMonitoringClient(ctx, ifaceName, tracker)
 	speedtestClient := speedtest.New(speedtest.WithDoer(client))
 
 	// Fetch Servers
@@ -199,6 +204,8 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 		defer ticker.Stop()
 		for {
 			select {
+			case <-ctx.Done():
+				return
 			case <-doneCh:
 				return
 			case <-ticker.C:
@@ -216,6 +223,12 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 	}()
 
 	// Ping
+	select {
+	case <-ctx.Done():
+		//log.Info().Msg("Speedtest cancelled by client (before Ping)")
+		return
+	default:
+	}
 	sendEvent("status", "Ping test...")
 	sendEvent("stage", "ping")
 	tracker.Reset()
@@ -240,6 +253,12 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 	}
 
 	// Download
+	select {
+	case <-ctx.Done():
+		//log.Info().Msg("Speedtest cancelled by client (before Download)")
+		return
+	default:
+	}
 	sendEvent("status", "Download test...")
 	sendEvent("stage", "download")
 	tracker.Reset()
@@ -253,6 +272,12 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 	time.Sleep(2500 * time.Millisecond)
 
 	// Upload
+	select {
+	case <-ctx.Done():
+		//log.Info().Msg("Speedtest cancelled by client (before Upload)")
+		return
+	default:
+	}
 	sendEvent("status", "Upload test...")
 	sendEvent("stage", "upload")
 	tracker.Reset()
@@ -296,7 +321,7 @@ func RunSpeedtestStream(w http.ResponseWriter, ifaceName string, serverID int, p
 	sendEvent("done", "Test complete")
 }
 
-func createMonitoringClient(ifaceName string, tracker *SpeedTracker) *http.Client {
+func createMonitoringClient(ctx context.Context, ifaceName string, tracker *SpeedTracker) *http.Client {
 	dialer := &net.Dialer{
 		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
@@ -324,6 +349,7 @@ func createMonitoringClient(ifaceName string, tracker *SpeedTracker) *http.Clien
 		Transport: &MonitoringTransport{
 			Transport: baseTransport,
 			Tracker:   tracker,
+			Context:   ctx,
 		},
 	}
 }
@@ -365,7 +391,7 @@ func searchServersViaAPI(client *http.Client, query string) ([]*speedtest.Server
 
 // GetServers returns a list of available speedtest servers, optionally filtered by search string
 func GetServers(ifaceName string, search string) ([]*speedtest.Server, error) {
-	client := createMonitoringClient(ifaceName, nil)
+	client := createMonitoringClient(context.Background(), ifaceName, nil)
 	speedtestClient := speedtest.New(speedtest.WithDoer(client))
 
 	if search != "" {

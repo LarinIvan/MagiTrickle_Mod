@@ -1,7 +1,6 @@
 <script lang="ts">
   import { scale } from "svelte/transition";
   import { onDestroy, onMount, untrack, tick } from "svelte";
-  import { loaderState } from "svelte-infinite";
 
   import { parseConfig, type Group, type Rule } from "../../types";
   import { defaultGroup, defaultRule, randomId } from "../../utils/defaults";
@@ -14,8 +13,8 @@
   import Tooltip from "../../components/ui/Tooltip.svelte";
   import {
     Add,
-    Upload,
-    Download,
+    Import,
+    Export,
     Save,
     CollapseAll,
     ExpandAll,
@@ -111,24 +110,20 @@
     if (index === -1) return;
 
     if (e.ctrlKey || e.metaKey || !is_desktop) {
-      // Toggle selection (Desktop Ctrl+Click OR Mobile default)
       if (selectedGroupIds.has(id)) {
         selectedGroupIds.delete(id);
       } else {
         selectedGroupIds.add(id);
       }
-      selectedGroupIds = new Set(selectedGroupIds); // Trigger reactivity
+      selectedGroupIds = new Set(selectedGroupIds);
     } else if (e.shiftKey) {
-      // Range selection
-      // Find last selected index (or 0 if none)
       let lastIndex = -1;
       const ids = Array.from(selectedGroupIds);
       if (ids.length > 0) {
-        const firstSelectedIdx = groupsStore.all.findIndex((g) => g.id === ids[0]); // simplistic
+        const firstSelectedIdx = groupsStore.all.findIndex((g) => g.id === ids[0]);
         const start = Math.min(firstSelectedIdx, index);
         const end = Math.max(firstSelectedIdx, index);
 
-        // Add range
         for (let i = start; i <= end; i++) {
           selectedGroupIds.add(groupsStore.all[i].id);
         }
@@ -138,7 +133,6 @@
         selectedGroupIds = new Set(selectedGroupIds);
       }
     } else {
-      // Single select (replace)
       if (!selectedGroupIds.has(id) || selectedGroupIds.size > 1) {
         selectedGroupIds.clear();
         selectedGroupIds.add(id);
@@ -170,24 +164,12 @@
     ruleIndices: number[] | null;
   };
 
-  type GroupDragData = {
-    group_id: string;
-    group_index: number;
-    name: string;
-    color: string;
-    count: number;
-  };
-
-  type GroupDropSlotData = {
-    group_index: number;
-    insert: "before" | "after";
-  };
+  import type { GroupDragData, GroupDropSlotData } from "../../types";
 
   function handleGroupSlotDrop(source: GroupDragData, target: GroupDropSlotData) {
     const { group_index: from_index, group_id } = source;
     const { group_index: to_index, insert } = target;
 
-    // If source is in selection, we do bulk move
     if (selectedGroupIds.has(group_id)) {
       moveSelectedGroups(to_index, insert);
       return;
@@ -204,7 +186,6 @@
 
     if (selectedIndices.length === 0) return;
 
-    // 1. Separate data
     const selectedGroups: Group[] = [];
     const selectedLimits: number[] = [];
 
@@ -221,12 +202,9 @@
       }
     });
 
-    // 2. Calculate insertion index in 'remainingData'
     let insertionIndex = 0;
 
     const targetGroup = groupsStore.all[targetIndex];
-
-    // Find where targetGroup is in remainingData
     let targetInRemaining = remainingData.findIndex((g) => g.id === targetGroup.id);
 
     if (targetInRemaining === -1) {
@@ -239,7 +217,6 @@
       insertionIndex = targetInRemaining + 1;
     }
 
-    // 3. Insert
     remainingData.splice(insertionIndex, 0, ...selectedGroups);
     remainingLimits.splice(insertionIndex, 0, ...selectedLimits);
 
@@ -249,7 +226,6 @@
   }
 
   function moveSelectedGroupsStep(direction: "up" | "down") {
-    // Create a set of indices to move
     const indices = groupsStore.all
       .map((g, i) => (selectedGroupIds.has(g.id) ? i : -1))
       .filter((i) => i !== -1);
@@ -263,7 +239,6 @@
 
       for (let i = 1; i < newData.length; i++) {
         if (selectedGroupIds.has(newData[i].id) && !selectedGroupIds.has(newData[i - 1].id)) {
-          // Swap with previous
           [newData[i], newData[i - 1]] = [newData[i - 1], newData[i]];
           [newLimits[i], newLimits[i - 1]] = [newLimits[i - 1], newLimits[i]];
           moved = true;
@@ -275,14 +250,12 @@
         recomputeVisibleGroups();
       }
     } else {
-      // Down: Iterate from L-2 to 0
       const newData = [...groupsStore.all];
       const newLimits = [...showed_limit];
       let moved = false;
 
       for (let i = newData.length - 2; i >= 0; i--) {
         if (selectedGroupIds.has(newData[i].id) && !selectedGroupIds.has(newData[i + 1].id)) {
-          // Swap with next
           [newData[i], newData[i + 1]] = [newData[i + 1], newData[i]];
           [newLimits[i], newLimits[i + 1]] = [newLimits[i + 1], newLimits[i]];
           moved = true;
@@ -384,7 +357,6 @@
       await groupsStore.load();
     }
 
-    // Resize limit array if needed
     if (showed_limit.length !== groupsStore.all.length) {
       showed_limit = groupsStore.all.map((group) =>
         group.rules.length > INITIAL_RULES_LIMIT ? INITIAL_RULES_LIMIT : group.rules.length,
@@ -419,7 +391,6 @@
     setTimeout(checkRulesValidityState, 10);
   });
 
-  // Расчет конфликтов при изменении групп
   $effect(() => {
     const groups = $state.snapshot(groupsStore.all);
     untrack(() => conflictsStore.calculate(groups));
@@ -639,13 +610,14 @@
   }
 
   async function loadMore(group_index: number): Promise<void> {
-    if (showed_limit[group_index] >= groupsStore.all[group_index].rules.length) return;
-    showed_limit[group_index] += INCREMENT_RULES_LIMIT;
-    if (showed_limit[group_index] > groupsStore.all[group_index].rules.length) {
-      showed_limit[group_index] = groupsStore.all[group_index].rules.length;
-      return;
-    }
-    loaderState.loaded();
+    const group = groupsStore.all[group_index];
+    if (!group) return;
+    const totalRules = group.rules.length;
+    if (showed_limit[group_index] >= totalRules) return;
+    showed_limit[group_index] = Math.min(
+      showed_limit[group_index] + INCREMENT_RULES_LIMIT,
+      totalRules,
+    );
   }
 
   function openImportRulesModal(groupIndex: number) {
@@ -656,7 +628,6 @@
     importRulesModal = { open: false, groupIndex: null };
   }
   function startSelection(e: MouseEvent) {
-    // Ignore if clicking on interactive elements or scrollbars
     if (
       (e.target as HTMLElement).closest(
         "button, input, label, a, .group-header, .rule, .bulk-actions, select, option, .console-window",
@@ -674,7 +645,6 @@
       active: true,
     };
 
-    // If not holding Ctrl/Shift, clicking background clears selection
     if (!e.ctrlKey && !e.shiftKey && !e.metaKey) {
       clearSelection();
     }
@@ -698,7 +668,6 @@
     selectionBox.currentX = e.clientX;
     selectionBox.currentY = e.clientY + window.scrollY;
 
-    // Calculate intersection with groups
     const boxRect = {
       left: Math.min(selectionBox.startX, selectionBox.currentX),
       top: Math.min(selectionBox.startY, selectionBox.currentY),
@@ -706,20 +675,13 @@
       bottom: Math.max(selectionBox.startY, selectionBox.currentY),
     };
 
-    // Query all visible groups
     const groupElements = document.querySelectorAll(".group[data-uuid]");
     const newSelection = new Set(selectedGroupIds);
 
-    // If we provided a "base" selection before drag, we should handle that.
-    // For now, simpler: re-evaluate intersections.
-    // If Ctrl is held, we Toggle? Or Add?
-    // Windows behavior: Dragging box inverts? Or adds? Usually adds.
-
     groupElements.forEach((el) => {
       const rect = el.getBoundingClientRect();
-      const absoluteTop = rect.top + window.scrollY; // Adjust for scroll
+      const absoluteTop = rect.top + window.scrollY;
 
-      // Check collision
       const intersect = !(
         boxRect.right < rect.left ||
         boxRect.left > rect.right ||
@@ -733,7 +695,6 @@
           newSelection.add(id);
         } else if (!e.ctrlKey) {
           if (!selectedGroupIds.has(id)) {
-            // It wasn't selected before, so it shouldn't be now.
           }
         }
       }
@@ -964,7 +925,7 @@
       <div class="toolbar-btn">
         <Tooltip value={t("Export Config")}>
           <Button onclick={exportConfig}>
-            <Download size={22} />
+            <Import size={22} />
           </Button>
         </Tooltip>
       </div>
@@ -975,7 +936,7 @@
               importConfigModal = { open: true, groups: [], fileName: "" };
             }}
           >
-            <Upload size={22} />
+            <Export size={22} />
           </Button>
         </Tooltip>
       </div>

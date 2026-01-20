@@ -4,7 +4,7 @@
   import { InfiniteLoader } from "svelte-infinite";
   import { createEventDispatcher } from "svelte";
 
-  import { type Group, type Rule } from "../../../types";
+  import { type Group, type Rule, type GroupDragData } from "../../../types";
   import { defaultRule } from "../../../utils/defaults";
   import { INTERFACES } from "../../../data/interfaces.svelte";
   import { getInterfaceLabel } from "../../../data/aliases.svelte";
@@ -78,6 +78,8 @@
   }: Props = $props();
 
   const dispatch = createEventDispatcher();
+
+  const triggerLoad = () => loadMore(group_index);
 
   let client_width = $state<number>(Infinity);
   let is_desktop = $derived(client_width > 668);
@@ -171,9 +173,19 @@
     <div
       class="group-header"
       data-group-index={group_index}
+      role="button"
+      tabindex="0"
+      onkeydown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          dispatch("select", { originalEvent: e, id: group.id });
+        }
+      }}
       onclick={(e) => {
         // Prevent selecting if clicking interactables
-        if ((e.target as HTMLElement).closest('button, input, label, [role="button"]')) return;
+        const target = e.target as HTMLElement;
+        const interactable = target.closest('button, input, label, [role="button"]');
+        if (interactable && interactable !== e.currentTarget) return;
         dispatch("select", { originalEvent: e, id: group.id });
       }}
       use:droppable={{
@@ -360,7 +372,7 @@
                       checked={group.rules.every((r) => r.enable)}
                       mixed={group.rules.some((r) => r.enable) &&
                         !group.rules.every((r) => r.enable)}
-                      onCheckedChange={(v) => {
+                      onCheckedChange={(v: boolean) => {
                         const allOn = group.rules.every((r) => r.enable);
                         const mixed = group.rules.some((r) => r.enable) && !allOn;
                         const newState = mixed ? true : !allOn;
@@ -395,7 +407,7 @@
                   class="master-switch"
                   checked={group.rules.every((r) => r.enable)}
                   mixed={group.rules.some((r) => r.enable) && !group.rules.every((r) => r.enable)}
-                  onCheckedChange={(v) => {
+                  onCheckedChange={(v: boolean) => {
                     const allOn = group.rules.every((r) => r.enable);
                     const mixed = group.rules.some((r) => r.enable) && !allOn;
                     const newState = mixed ? true : !allOn;
@@ -437,7 +449,7 @@
               {/if}
             {/each}
           {:else}
-            <InfiniteLoader triggerLoad={() => loadMore(group_index)} loopDetectionTimeout={10}>
+            <InfiniteLoader {triggerLoad} loopDetectionTimeout={10}>
               {#each group.rules.slice(0, showed_limit) as rule, rule_index (rule.id)}
                 <RuleRow
                   key={rule.id}
@@ -475,9 +487,19 @@
     }
 
     &.selected {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent);
       z-index: 1;
+      border-color: transparent;
+    }
+
+    &.selected::after {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      border: 1px solid var(--accent);
+      box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent);
+      pointer-events: none;
+      z-index: 10;
     }
   }
 
@@ -691,7 +713,7 @@
       max-width: 100%;
     }
 
-    :global(.group-actions > *:nth-child(3)) {
+    :global(.group-actions > *:nth-child(2)) {
       margin-left: auto;
     }
 

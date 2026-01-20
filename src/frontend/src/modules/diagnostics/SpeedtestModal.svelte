@@ -42,7 +42,7 @@
       .map((id) => ({
         id,
         name: aliases.all[id] || id,
-        active: true, // assume active if alias exists
+        active: true,
       }));
     return [...known, ...extra];
   });
@@ -55,16 +55,13 @@
 
     currentInterfaceId = iface.id;
     currentInterfaceName = iface.name;
-    currentInterfaceIP = undefined; // clear pending fetch
+    currentInterfaceIP = undefined;
     manualIP = null;
     isInterfaceSelectOpen = false;
 
-    // Reset test
     closeEventSource();
     phase = "init";
 
-    // Reset animations instantly
-    // Reset animations instantly
     currentSpeed.set(0, { duration: 0 });
     tickProgressDegree.set(-10, { duration: 0 });
 
@@ -86,9 +83,6 @@
     easing: cubicOut,
   });
 
-  // Ticks animation: -10 -> 280 degrees (reveal), 280 -> -10 (hide)
-  // Animate by DEGREE for linear spatial effect.
-  // 0 deg = start, 270 deg = end.
   let tickProgressDegree = tweened(-10, {
     duration: 1500,
     easing: linear,
@@ -96,16 +90,12 @@
 
   $effect(() => {
     if (phase === "download") {
-      // Reveal linearly start at DOWNLOAD phase.
       tickProgressDegree.set(280, { duration: 1500 });
     } else if (phase === "upload" && uploadMbps !== null) {
-      // Hide at end of upload (when result is known, during the pause)
       tickProgressDegree.set(-10, { duration: 1500 });
     } else if (phase === "done" || phase === "loss") {
-      // Ensure hidden if missed
       tickProgressDegree.set(-10, { duration: 1500 });
     } else if (phase === "init") {
-      // Reset instantly
       tickProgressDegree.set(-10, { duration: 0 });
     }
   });
@@ -133,7 +123,6 @@
 
   let parallelLossEnabled = $state(true);
 
-  // Server Selection
   let servers = $state<any[]>([]);
   let selectedServerId = $state<string | null>(null);
   let isServerSelectOpen = $state(false);
@@ -179,29 +168,18 @@
     isServerSelectOpen = false;
   }
 
-  // Gauge Logic
-  // Ticks: 0, 5, 10, 50, 100, 250, 500, 750, 1000
-  // Total Arc: 270 degrees.
-  // We want UNIFORM visual spacing between these specific 9 ticks.
-  // Step = 270 / (9 - 1) = 33.75 degrees.
   const scaleTable = [
     { degree: 0, value: 0 },
     { degree: 33.75, value: 5 },
     { degree: 67.5, value: 10 },
     { degree: 101.25, value: 50 },
-    { degree: 135, value: 100 }, // Top Center (Aligned)
+    { degree: 135, value: 100 },
     { degree: 168.75, value: 250 },
     { degree: 202.5, value: 500 },
     { degree: 236.25, value: 750 },
     { degree: 270, value: 1000 },
   ];
 
-  /* 
-    Helper to calculate tick position
-    Center: 200, 200
-    Radius: 105 (Inside the 140 arc with 30 width)
-    Angle offset: +135 degrees to map 0 to Start
-  */
   function getTickPos(deg: number) {
     const r = 105;
     const angleRad = (deg + 135) * (Math.PI / 180);
@@ -229,13 +207,11 @@
     untrack(() => {
       fetchExternalIP();
     });
-    // Lock body scroll
     if (typeof document !== "undefined") {
       document.body.style.overflow = "hidden";
     }
     return () => {
       closeEventSource();
-      // Unlock body scroll
       if (typeof document !== "undefined") {
         document.body.style.overflow = "";
       }
@@ -281,7 +257,6 @@
   }
 
   function retryTest() {
-    // If we already have upload results, consider it done instead of retrying
     if (uploadMbps !== null) {
       phase = "done";
       isTestDone = true;
@@ -293,7 +268,7 @@
     closeEventSource();
     toast.error(t("Speedtest failed, retrying..."));
     setTimeout(() => {
-      if (onClose) startTest();
+      startTest();
     }, 1500);
   }
 
@@ -320,7 +295,7 @@
     eventSource = new EventSource(url);
 
     eventSource.addEventListener("status", (e) => handleEventData(e.data, (d) => (statusText = d)));
-    eventSource.addEventListener("error", (e) => {
+    eventSource.addEventListener("error", (e: any) => {
       try {
         if (!e.data || e.data === "undefined") {
           retryTest();
@@ -335,9 +310,6 @@
     });
     eventSource.addEventListener("server_info", (e) =>
       handleEventData(e.data, (d) => {
-        // If we already have info for this server (e.g. from manual selection),
-        // and the new info is missing country/sponsor (e.g. from FetchServerByID quirk),
-        // preserve the existing info.
         if (serverInfo && serverInfo.id === d.id) {
           serverInfo = {
             ...d,
@@ -511,7 +483,6 @@
 
       <div class="st-main">
         <div class="gauge-container">
-          <!-- Gauge SVG (Always rendered, opacity changes) -->
           <div
             class="gauge-wrapper"
             style:opacity={phase === "init" || phase === "done" ? "0" : "1"}
@@ -536,11 +507,6 @@
                   <stop offset="100%" stop-color="#ffafcc" />
                 </linearGradient>
               </defs>
-              <!-- Thick Background Arc -->
-              <!-- 
-                DashArray: Circ ~ 880. Arc 270 deg = 660.
-                Rotate 135 deg to start at bottom left.
-              -->
               <circle
                 cx="200"
                 cy="200"
@@ -553,7 +519,6 @@
                 transform="rotate(135 200 200)"
               />
 
-              <!-- Value Arc -->
               <circle
                 cx="200"
                 cy="200"
@@ -578,7 +543,6 @@
                         ? 1
                         : 0)}; transition: stroke-dashoffset 0.4s linear;"
               />
-              <!-- Center Value (Hidden in init/done) -->
               {#if phase !== "init" && phase !== "done"}
                 <text
                   x="200"
@@ -610,7 +574,6 @@
                 </text>
               {/if}
 
-              <!-- Ticks -->
               {#each scaleTable as tick}
                 {@const pos = getTickPos(tick.degree)}
                 <text
@@ -626,7 +589,6 @@
                 </text>
               {/each}
 
-              <!-- Active Icon -->
               {#if phase === "ping"}
                 <circle cx="200" cy="265" r="5" fill="#fff38e" class="blink" />
               {:else if phase === "download"}
@@ -644,7 +606,6 @@
             </svg>
           </div>
 
-          <!-- GO Button Overlay -->
           {#if phase === "init" || phase === "done"}
             <div class="go-button-overlay" transition:scale>
               <div class="go-ring"></div>
@@ -903,7 +864,6 @@
     flex-shrink: 0;
     transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
-  /* Removed .st-stats.result-mode scaling per user request */
   .st-stat-item {
     display: flex;
     flex-direction: column;
@@ -1041,12 +1001,11 @@
     flex-direction: column;
     gap: 10px;
   }
-  /* Custom Scrollbar */
   .server-list::-webkit-scrollbar {
     width: 6px;
   }
   .server-list::-webkit-scrollbar-track {
-    background: rgba(20, 21, 38, 0.5); /* dark variant of primary-blue */
+    background: rgba(20, 21, 38, 0.5);
     border-radius: 4px;
     margin: 4px 0;
   }
@@ -1069,7 +1028,7 @@
     color: var(--primary-blue);
   }
   .server-item.active .server-meta {
-    color: var(--primary-blue); /* High contrast on light blue (black-ish blue) */
+    color: var(--primary-blue);
     opacity: 0.8;
   }
   .server-item:hover {
@@ -1239,7 +1198,6 @@
     text-align: center;
   }
 
-  /* Toggle Switch */
   .loss-toggle {
     display: flex;
     align-items: center;
@@ -1293,7 +1251,6 @@
     .modal-content {
       height: auto;
       margin-top: 50px;
-      /* removed overflow/max-height to fix close button clipping */
     }
     .st-main {
       flex: 1 1 auto;
@@ -1301,7 +1258,7 @@
     }
     .gauge-svg {
       max-width: none;
-      max-height: 40vh; /* Constrain height relative to viewport */
+      max-height: 40vh;
       width: 100%;
       height: 100%;
       min-height: 200px;
@@ -1328,7 +1285,6 @@
       width: auto !important;
       margin-top: 0 !important;
     }
-    /* Top row: Ping, Jitter, Loss (3 items -> span 2) */
     .st-stat-item:nth-child(1),
     .st-stat-item:nth-child(2),
     .st-stat-item:nth-child(3) {
@@ -1339,7 +1295,6 @@
     .st-stat-item:nth-child(3) .st-stat-value {
       font-size: 16px;
     }
-    /* Bottom row: Download, Upload (2 items -> span 3) */
     .st-stat-item:nth-child(4),
     .st-stat-item:nth-child(5) {
       grid-column: span 3;

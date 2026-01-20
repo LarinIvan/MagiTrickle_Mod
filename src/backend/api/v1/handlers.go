@@ -772,7 +772,7 @@ func (h *Handler) RunSpeedtest(w http.ResponseWriter, r *http.Request) {
 	ifaceName := r.URL.Query().Get("interface")
 	serverID, _ := strconv.Atoi(r.URL.Query().Get("server_id"))
 	parallelLoss := r.URL.Query().Get("parallel_loss") == "true"
-	diagnostics.RunSpeedtestStream(w, ifaceName, serverID, parallelLoss)
+	diagnostics.RunSpeedtestStream(r.Context(), w, ifaceName, serverID, parallelLoss)
 }
 
 // GetSpeedtestServers

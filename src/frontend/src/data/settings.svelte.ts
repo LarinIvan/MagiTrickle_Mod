@@ -13,7 +13,7 @@ class SettingsStore {
 
     async load() {
         try {
-            const res = await fetcher.get("/system/settings");
+            const res = await fetcher.get<import("../types").SettingsConfig>("/system/settings");
             if (res) {
                 this.config = res;
             }
@@ -22,7 +22,7 @@ class SettingsStore {
         }
     }
 
-    async save(newSettings) {
+    async save(newSettings: Partial<import("../types").SettingsConfig>) {
         try {
             this.config = { ...this.config, ...newSettings };
             await fetcher.post("/system/settings?save=true", this.config);

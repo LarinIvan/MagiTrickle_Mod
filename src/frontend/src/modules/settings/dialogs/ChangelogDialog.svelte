@@ -40,7 +40,6 @@
     }
   });
 
-  // Simple Markdown Parser (Headers, Lists, Bold, Code)
   function parseMarkdown(text: string) {
     if (!text) return "";
     let html = text
@@ -51,13 +50,9 @@
       .replace(/\*\*(.*)\*\*/gim, "<b>$1</b>")
       .replace(/\`(.*)\`/gim, "<code>$1</code>");
 
-    // Wrap lists
-    // Simple hack: if line starts with <li>, and previous didn't, add <ul>?
-    // Easier: Just replace explicit double newlines with <br> and wrap everything in a div
     return html.replace(/\n/g, "<br />");
   }
 
-  // A slightly better parser for lists
   function renderMarkdown(text: string) {
     const lines = text.split("\n");
     let output = "";
@@ -66,7 +61,6 @@
     for (let line of lines) {
       line = line.trim();
 
-      // Headers
       if (line.startsWith("### ")) {
         if (inList) {
           output += "</ul>";
@@ -85,25 +79,18 @@
           inList = false;
         }
         output += `<h1>${parseInline(line.slice(2))}</h1>`;
-      }
-      // List items
-      else if (line.startsWith("- ")) {
+      } else if (line.startsWith("- ")) {
         if (!inList) {
           output += '<ul class="changelog-list">';
           inList = true;
         }
         output += `<li>${parseInline(line.slice(2))}</li>`;
-      }
-      // Empty lines
-      else if (line === "") {
+      } else if (line === "") {
         if (inList) {
           output += "</ul>";
           inList = false;
         }
-        // output += '<br/>'; // Optional: add spacing
-      }
-      // Paragraphs
-      else {
+      } else {
         if (inList) {
           output += "</ul>";
           inList = false;
@@ -219,7 +206,6 @@
     color: var(--text);
   }
 
-  /* Custom Scrollbar */
   .dialog-body::-webkit-scrollbar {
     width: 6px;
   }
@@ -237,7 +223,6 @@
     background-color: var(--accent-dim);
   }
 
-  /* Changelog Typography */
   .changelog-content :global(h1),
   .changelog-content :global(h2) {
     font-size: 1.5rem;
@@ -292,7 +277,6 @@
     font-size: 0.9em;
   }
 
-  /* Loading State */
   .loading-state,
   .error-state {
     display: flex;

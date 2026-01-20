@@ -7,10 +7,7 @@ export const aliases = {
     async load() {
         try {
             const res = await fetcher.get<Record<string, string>>("/system/interfaces/aliases");
-            if (res) { // Fetcher returns data directly? Or Response? 
-                       // check interfaces.svelte.ts: await fetcher.get(...).then(...)
-                       // interfaces.svelte.ts uses .then(data => ...).
-                       // So fetcher.get returns Promise<T>.
+            if (res) {
                 _aliases = res;
             }
         } catch (e) {
@@ -19,8 +16,6 @@ export const aliases = {
     },
     async save(newAliases: Record<string, string>) {
         try {
-            // Post might return raw response or data.
-            // handlers.go SaveInterfaceAliases writes nil.
             await fetcher.post("/system/interfaces/aliases?save=true", newAliases);
             _aliases = newAliases;
             return true;

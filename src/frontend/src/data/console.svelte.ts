@@ -52,14 +52,11 @@ class ConsoleStore {
         };
 
         this.eventSource.onmessage = (event) => {
-            // Here we can try to parse JSON if we want prettier logs
-            // For now, raw string is fine, or we can format it
             this.addLog(event.data);
         };
 
         this.eventSource.onerror = (err) => {
-            // console.error("SSE Error", err); 
-            // EventSource auto-reconnects, but we might want to show status
+            // console.error("SSE Error", err);
             this.eventSource?.close();
             this.eventSource = null;
             this.addLog("--- Connection lost. Reconnecting... ---");
@@ -92,12 +89,9 @@ class ConsoleStore {
             if (msg.startsWith('{') && msg.includes('level')) {
                 const parsed = JSON.parse(msg);
 
-                // Extract standard fields
                 entry.time = parsed.time ? new Date(parsed.time).toLocaleTimeString([], { hour12: false }) : new Date().toLocaleTimeString([], { hour12: false });
-                entry.level = (parsed.level || 'INFO').toUpperCase().padEnd(3).slice(0, 3); // 3 chars like INF, ERR? Or user wants INF/WRN/ERR
+                entry.level = (parsed.level || 'INFO').toUpperCase().padEnd(3).slice(0, 3);
 
-                // Map zerolog levels to 3-char codes for compact view if desired, or keep as is.
-                // User screenshot shows: INF, WRN, ERR.
                 const lvlMap: Record<string, string> = {
                     'info': 'INF',
                     'warn': 'WRN',
@@ -116,7 +110,6 @@ class ConsoleStore {
                     entry.isError = true;
                 }
 
-                // Extract KV pairs
                 for (const [key, value] of Object.entries(parsed)) {
                     if (['time', 'level', 'message', 'msg', 'error', 'err'].includes(key)) continue;
 
@@ -129,24 +122,20 @@ class ConsoleStore {
                     entry.kvPairs.push({ key, value: valStr });
                 }
 
-                // Error field handling
                 if (parsed.error || parsed.err) {
                     entry.kvPairs.push({ key: 'error', value: parsed.error || parsed.err });
                     entry.isError = true;
                 }
             } else {
-                // Non-JSON log
                 entry.time = new Date().toLocaleTimeString([], { hour12: false });
             }
         } catch (e) {
-            // parsing failed, use raw
             entry.time = new Date().toLocaleTimeString([], { hour12: false });
         }
 
-        // Final sanitization to prevent "undefined" in UI
         if (!entry.time) entry.time = new Date().toLocaleTimeString([], { hour12: false });
         if (!entry.level) entry.level = "INFO";
-        if (!entry.message) entry.message = ""; // Empty string, not undefined
+        if (!entry.message) entry.message = "";
 
         this.logs.push(entry);
         if (this.logs.length > this.maxLogs) {

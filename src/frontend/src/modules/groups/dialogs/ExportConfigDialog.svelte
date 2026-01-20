@@ -82,9 +82,15 @@
     <div class="list-header">
       <div class="select-all-container">
         <Checkbox checked={allSelected} on:change={handleSelectAll} />
-        <span class="select-all-label" onclick={() => selectAll(!allSelected)}
-          >{t("Select all")}</span
+        <span
+          class="select-all-label"
+          role="button"
+          tabindex="0"
+          onclick={() => selectAll(!allSelected)}
+          onkeydown={(e) => (e.key === "Enter" || e.key === " ") && selectAll(!allSelected)}
         >
+          {t("Select all")}
+        </span>
       </div>
       <span class="groups-label">{t("Groups")}</span>
     </div>

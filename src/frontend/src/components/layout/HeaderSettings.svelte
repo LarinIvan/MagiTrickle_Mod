@@ -15,7 +15,13 @@
 </script>
 
 <div class="container">
-  <div class="version" onclick={() => updater.check()}>
+  <div
+    class="version"
+    role="button"
+    tabindex="0"
+    onclick={() => updater.check()}
+    onkeydown={(e) => (e.key === "Enter" || e.key === " ") && updater.check()}
+  >
     <span>build: {version}</span>
     {#if isDev}
       <div class="under-construction">dev</div>

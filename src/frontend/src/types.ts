@@ -80,3 +80,24 @@ export interface SpeedtestResult {
   upload_mbps: number;
   interface: string;
 }
+
+export interface SettingsConfig {
+  enable_regexp: boolean;
+  enable_wildcard: boolean;
+  log_level: string;
+  show_interface_ips: boolean;
+  auto_check_updates: boolean;
+}
+
+export type GroupDragData = {
+  group_id: string;
+  group_index: number;
+  name: string;
+  color?: string;
+  count: number;
+};
+
+export type GroupDropSlotData = {
+  group_index: number;
+  insert: "before" | "after";
+};

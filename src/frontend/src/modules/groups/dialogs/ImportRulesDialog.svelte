@@ -565,6 +565,9 @@
     justify-content: center;
     width: 100% !important;
   }
+  .rule-type-select :global([data-select-trigger] .selected-value) {
+    color: var(--text-2);
+  }
   .rule-type-select :global([data-select-content]) {
     min-width: 100% !important;
     width: auto;
@@ -583,8 +586,7 @@
   .rule-type-select :global(.select-root),
   .rule-type-select :global(button) {
     height: 2.5rem;
-    font-size: 0.85rem;
-    color: var(--text);
+    font-size: 0.95rem;
     border: 1px solid var(--bg-light-extra);
     border-radius: 0.5rem;
     background-color: var(--bg-light);

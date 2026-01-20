@@ -21,7 +21,6 @@
   let isRestarting = $state(false);
   let changelogOpen = $state(false);
 
-  // Options for Log Level
   const logLevels = [
     { value: "debug", label: "Log Level Debug" },
     { value: "info", label: "Log Level Info" },
@@ -79,14 +78,12 @@
   </div>
 
   <div class="settings-grid">
-    <!-- Advanced Matching Engines -->
     <div class="setting-card grouped">
       <div class="setting-icon text-yellow-400">
         <Regex size={24} />
       </div>
 
       <div class="setting-group-content">
-        <!-- Wildcard Toggle -->
         <div class="setting-row">
           <div class="setting-title-row">
             <h3>{t("settings.enable_wildcard")}</h3>
@@ -102,7 +99,6 @@
 
         <div class="setting-separator"></div>
 
-        <!-- Regexp Toggle -->
         <div class="setting-row">
           <div class="setting-title-row">
             <h3>{t("Use Regexp")}</h3>
@@ -118,7 +114,6 @@
       </div>
     </div>
 
-    <!-- Show IPs Toggle -->
     <div class="setting-card">
       <div class="setting-icon">
         <Network size={24} />
@@ -139,14 +134,12 @@
       </div>
     </div>
 
-    <!-- Version and update -->
     <div class="setting-card grouped">
       <div class="setting-icon text-blue-400">
         <ArrowUpCircle size={24} />
       </div>
 
       <div class="setting-group-content">
-        <!-- Version Info -->
         <div class="setting-row">
           <div class="setting-title-row">
             <div>
@@ -178,7 +171,6 @@
 
         <ChangelogDialog bind:open={changelogOpen} />
 
-        <!-- Auto Check Updates Toggle -->
         <div class="setting-row">
           <div class="setting-title-row">
             <h3>{t("Notify about new version")}</h3>
@@ -193,13 +185,11 @@
 
         <div class="setting-separator"></div>
 
-        <!-- Actions -->
         <div class="setting-row">
           <div class="mobile-actions-row">
             <Button class="check-btn" onclick={() => updater.check()} disabled={updater.checking}>
               {updater.checking ? t("Checking...") : t("Check for Updates")}
             </Button>
-            <!-- TEMP: Reverted -->
             {#if updater.newVersion}
               <Button
                 class="update-btn"
@@ -214,14 +204,12 @@
       </div>
     </div>
 
-    <!-- Logging Group -->
     <div class="setting-card grouped">
       <div class="setting-icon text-purple-400">
         <TerminalSquare size={24} />
       </div>
 
       <div class="setting-group-content">
-        <!-- Debug Console -->
         <div class="setting-row">
           <div class="setting-title-row stack-mobile">
             <h3>{t("Debug Console")}</h3>
@@ -239,7 +227,6 @@
 
         <div class="setting-separator"></div>
 
-        <!-- Log Level -->
         <div class="setting-row">
           <div class="setting-title-row stack-mobile">
             <h3>{t("Log Level")}</h3>
@@ -258,7 +245,6 @@
       </div>
     </div>
 
-    <!-- Restart Button -->
     <div class="setting-card danger-zone">
       <div class="setting-icon">
         <div class={isRestarting ? "spin" : ""}>
@@ -325,7 +311,7 @@
     background-color: var(--bg-light);
     border: 1px solid var(--bg-light-extra);
     border-radius: 0.75rem;
-    padding: 1.5rem; /* Increased padding */
+    padding: 1.5rem;
     transition:
       transform 0.2s ease,
       box-shadow 0.2s ease;
@@ -341,10 +327,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 3.5rem; /* Larger icon box */
+    width: 3.5rem;
     height: 3.5rem;
     background-color: var(--bg-dark);
-    border-radius: 0.75rem; /* More rounded */
+    border-radius: 0.75rem;
     color: var(--text-2);
   }
 
@@ -371,9 +357,6 @@
     }
   }
 
-  /* --- Component Overrides --- */
-
-  /* Make Switch Larger */
   .switch-control :global([data-switch-root]) {
     width: 52px !important;
     height: 30px !important;
@@ -386,7 +369,6 @@
     transform: translateX(22px) !important;
   }
 
-  /* Make Select Darker and Larger */
   .select-wrapper-dark :global([data-select-trigger]) {
     background-color: var(--bg-dark) !important;
     border: 1px solid var(--bg-light-extra) !important;
@@ -399,11 +381,10 @@
     border-color: var(--accent-dim) !important;
   }
 
-  /* Restart Button Styling */
   :global(button.restart-btn) {
     background-color: color-mix(in oklab, var(--red) 15%, var(--bg-dark)) !important;
     border: 1px solid color-mix(in oklab, var(--red) 30%, transparent) !important;
-    color: var(--text) !important; /* White text */
+    color: var(--text) !important;
     font-weight: 500;
     padding: 0.6rem 1.2rem !important;
     font-size: 1rem;
@@ -413,7 +394,6 @@
     border-color: var(--red) !important;
   }
 
-  /* Console Button Styling (Matches Restart) */
   :global(button.console-btn) {
     background-color: color-mix(in oklab, var(--accent) 15%, var(--bg-dark)) !important;
     border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent) !important;
@@ -421,14 +401,13 @@
     font-weight: 500;
     padding: 0.6rem 1.2rem !important;
     font-size: 1rem;
-    min-width: 150px; /* Match select width */
+    min-width: 150px;
   }
   :global(button.console-btn:hover) {
     background-color: color-mix(in oklab, var(--accent) 25%, var(--bg-dark)) !important;
     border-color: var(--accent) !important;
   }
 
-  /* Check Button Styling (Blue-ish) */
   :global(button.check-btn) {
     background-color: color-mix(in oklab, var(--bg-light-extra) 15%, var(--bg-dark)) !important;
     border: 1px solid var(--bg-light-extra) !important;
@@ -453,15 +432,10 @@
     filter: brightness(1.1);
   }
 
-  /* Update Button Styling (Green, High Contrast) */
   :global(button.update-btn) {
-    background-color: color-mix(
-      in oklab,
-      var(--green) 80%,
-      black
-    ) !important; /* Darker green background */
+    background-color: color-mix(in oklab, var(--green) 80%, black) !important;
     border: 1px solid var(--green) !important;
-    color: white !important; /* White text for contrast */
+    color: white !important;
     font-weight: 600;
     padding: 0.6rem 1.2rem !important;
     font-size: 1rem;
@@ -485,7 +459,6 @@
     font-weight: 700;
   }
 
-  /* Danger Zone Styling */
   .danger-zone {
     border-color: color-mix(in oklab, var(--red) 30%, transparent);
     background-color: color-mix(in oklab, var(--red) 5%, var(--bg-light));
@@ -506,7 +479,6 @@
     color: var(--red) !important;
   }
 
-  /* Spin animation for restart icon */
   .spin {
     animation: spin 1s linear infinite;
   }
@@ -519,7 +491,6 @@
     }
   }
 
-  /* Grouped Card Styling */
   .setting-card.grouped {
     display: flex;
     gap: 1.5rem;
@@ -548,7 +519,6 @@
     gap: 1rem;
   }
 
-  /* Force right alignment for controls */
   .setting-title-row .setting-control {
     margin-left: auto;
   }
@@ -559,7 +529,6 @@
     width: 100%;
   }
 
-  /* Description text */
   .setting-description {
     font-size: 0.95rem;
     color: var(--text-2);
@@ -568,95 +537,80 @@
     margin: 0;
   }
 
-  /* Actions Row (Updates) - Desktop Default */
   .mobile-actions-row {
     display: flex;
-    gap: 0.5rem; /* Standard desktop gap */
+    gap: 0.5rem;
     width: 100%;
   }
 
-  /* Mobile Adjustments */
   @media (max-width: 600px) {
     .setting-card {
-      /* Stack icon on top, content below */
       display: flex;
       flex-direction: column;
-      gap: 0.5rem; /* Standard small gap */
-      align-items: stretch; /* FIX: Stretch content to full width */
+      gap: 0.5rem;
+      align-items: stretch;
       padding: 1rem;
     }
 
     .setting-card.grouped {
-      flex-direction: column; /* Stack grouped items */
-      gap: 1rem; /* Gap between separated groups */
-      align-items: stretch !important; /* FIX: Override desktop flex-start to ensure full width */
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch !important;
     }
-
-    /* Reduce gap between internal items on mobile */
     .setting-group-content {
-      gap: 1.25rem !important; /* Clear separation between items */
+      gap: 1.25rem !important;
     }
 
-    /* Hide separators on mobile to save space */
     .setting-separator {
       display: none !important;
     }
 
     .setting-icon {
-      /* Half size (3.5rem / 2 = 1.75rem) */
       width: 1.75rem;
       height: 1.75rem;
       flex-shrink: 0;
       border-radius: 0.4rem;
     }
 
-    /* Adjust icon SVG size */
     .setting-icon :global(svg) {
       width: 1.25rem;
       height: 1.25rem;
     }
 
-    /* Standardize all headers to match the tight "Console" look */
     .setting-card h3 {
       margin: 0 !important;
       line-height: 1.2 !important;
-      font-size: 1.1rem !important; /* Slightly larger/standardized */
+      font-size: 1.1rem !important;
     }
 
-    /* 1. Fix Toggles: Ensure separate rows align properly */
     .setting-title-row {
-      width: 100% !important; /* Reinforce */
+      width: 100% !important;
     }
-    /* Only apply right-alignment to rows that are NOT stacked */
     .setting-title-row:not(.stack-mobile) {
       justify-content: space-between !important;
       align-items: center !important;
     }
 
-    /* 2. Stacked Mobile Controls (Console, Log Level, Restart) */
     .setting-title-row.stack-mobile {
       flex-direction: column;
       align-items: flex-start;
-      gap: 0.5rem; /* Standard small gap */
+      gap: 0.5rem;
     }
     .setting-title-row.stack-mobile .setting-control {
       width: 100%;
       margin-left: 0;
-      display: block; /* Remove flexrow constraint */
+      display: block;
     }
 
-    /* 3. Universal Button Expansion in Stacked/Mobile Contexts */
-    /* Target standard buttons in stacked rows OR special action rows */
     .setting-title-row.stack-mobile :global(button),
     .mobile-actions-row :global(button) {
       width: 100% !important;
       max-width: none !important;
       min-width: 0 !important;
-      display: flex !important; /* Override inline-flex */
+      display: flex !important;
       justify-content: center !important;
     }
 
-    /* 4. Select Dropdown Expansion */
     .setting-title-row.stack-mobile .select-wrapper-dark {
       display: block;
       width: 100% !important;
@@ -678,7 +632,6 @@
       display: flex !important;
     }
 
-    /* Actions Row Stacking (Updates) - Mobile Override */
     .mobile-actions-row {
       flex-direction: column;
       align-items: stretch !important;

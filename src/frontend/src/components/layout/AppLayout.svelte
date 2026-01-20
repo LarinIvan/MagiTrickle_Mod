@@ -24,14 +24,13 @@
   });
 </script>
 
-<!-- TODO: add locales -->
-<!-- TODO: add white/dark themes -->
-
 <Toast />
 <Overlay />
 <ScrollToTop />
 <ConsoleWindow />
-<SnowField variant="front" />
+{#if [11, 0, 1].includes(new Date().getMonth())}
+  <SnowField />
+{/if}
 
 <main>
   <Tabs.Root bind:value={active_tab}>
@@ -46,7 +45,6 @@
       </div>
     </nav>
     <article>
-      <!-- Keep-alive implementation using display style -->
       <div style:display={active_tab === "groups" ? "block" : "none"}>
         <GroupsView />
       </div>
@@ -69,8 +67,6 @@
     align-items: center;
     margin-bottom: 2rem;
     padding: 0.3rem;
-    position: relative;
-    z-index: 1;
   }
 
   .top-nav {
@@ -78,8 +74,8 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    width: 100%; /* Ensure it spans width */
-    max-width: 1000px; /* Match Tabs.Root width constraint */
+    width: 100%;
+    max-width: 1000px;
   }
 
   .header-controls {
@@ -128,34 +124,23 @@
 
   @media (max-width: 700px) {
     main {
-      padding-bottom: 80px; /* Space for BottomNav */
+      padding-bottom: 80px;
       margin-bottom: 0;
     }
 
     .top-nav {
-      display: none; /* Hide top nav tabs */
+      display: none;
     }
-
-    /* Keep header controls visible? Logic says we only want Tabs List hidden. 
-       But header-controls usually contains settings, log toggles etc.
-       If we hide top-nav, we hide header-controls too. 
-       We probably want header-controls to be accessible or moved?
-       For now, per instructions: "Вкладки Групп/Интерфейсы/Настройки переместим в меню снизу".
-       However, HeaderSettings includes Global Toggle, locale, etc.
-       If we hide them, user loses functionality. 
-       Let's keep them visible but perhaps styled differently, or just hide the Tabs List.
-    */
   }
 
   @media (max-width: 700px) {
-    /* Refined mobile styles */
     :global([data-tabs-list]) {
-      display: none; /* Hide Tabs List specifically */
+      display: none;
     }
 
     .top-nav {
       display: flex;
-      justify-content: flex-end; /* Only controls remain */
+      justify-content: flex-end;
       padding: 0.5rem 0;
     }
 

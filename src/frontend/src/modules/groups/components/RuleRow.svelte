@@ -382,7 +382,6 @@
 
     .pattern {
       display: grid;
-      /* Mobile layout: Label | Icon | Input */
       grid-template-columns: 3.2rem auto minmax(0, 1fr);
       align-items: center;
       gap: 0.35rem;

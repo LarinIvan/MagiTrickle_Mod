@@ -10,11 +10,9 @@ class UpdaterStore {
         if (this.checking) return;
         this.checking = true;
         try {
-            // Using window.location.origin not strictly needed if fetcher handles it, but good for safety
-            const res = await fetcher.get("/system/update/check");
+            const res = await fetcher.get<{ available_version: string }>("/system/update/check");
             if (res && res.available_version) {
                 this.newVersion = res.available_version;
-                // Notify even if silent (auto-check), so user knows on startup
                 toast.success(`${t("New version available:")} ${this.newVersion}`);
             } else {
                 this.newVersion = "";
@@ -36,7 +34,6 @@ class UpdaterStore {
         try {
             await fetcher.post("/system/update/run", {});
             toast.success(t("Update started. The service will restart shortly..."));
-            // Optionally reload page after some time
             setTimeout(() => {
                 window.location.reload();
             }, 10000);

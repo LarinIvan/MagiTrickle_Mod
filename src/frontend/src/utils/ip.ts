@@ -6,7 +6,6 @@ export interface ParsedCIDR {
     isIPv6: boolean
 }
 
-// Кеш для парсинга CIDR (оптимизация)
 const cidrCache = new Map<string, ParsedCIDR | null>()
 
 export class IPUtils {

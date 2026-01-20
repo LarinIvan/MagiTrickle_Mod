@@ -11,7 +11,6 @@ export type DroppableOptions<T> = {
   debug?: boolean
 }
 
-// одна активная подсветка на scope
 let CURRENT: { node: HTMLElement | null; scope: string | null } = { node: null, scope: null }
 
 export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
@@ -34,11 +33,9 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
       e.dataTransfer.dropEffect = valid ? options?.dropEffect ?? "move" : "none"
     }
 
-    // статус для стилизации
     (node as HTMLElement).dataset.drop = valid ? "allowed" : "denied"
 
     if (valid) {
-      // обеспечить одну подсветку
       if (CURRENT.node && CURRENT.node !== node && CURRENT.scope === options.scope) {
         CURRENT.node.classList.remove("dragover");
         (CURRENT.node as HTMLElement).dataset.drop = ""
@@ -58,7 +55,7 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
     if (!active()) return
     enterCount++
     validateAndDecorate(e)
-    e.preventDefault() // Safari любит preventDefault на enter
+    e.preventDefault()
   }
 
   function onDragOver(e: DragEvent) {
@@ -81,7 +78,6 @@ export function droppable<T>(node: HTMLElement, options: DroppableOptions<T>) {
     e.preventDefault()
     enterCount = 0
     if (valid && options?.onDrop) {
-      // fire custom drop handler immediately so consumers can react before dragend
       try {
         options.onDrop(dnd_state.source, options.data)
       } finally {

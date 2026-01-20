@@ -5,7 +5,7 @@
   import { t } from "../../data/locale.svelte";
   import Button from "../../components/ui/Button.svelte";
   import Tooltip from "../../components/ui/Tooltip.svelte";
-  import { Save, Upload, Download, Globe, Gauge } from "../../components/ui/icons";
+  import { Save, Import, Export, Globe, Gauge } from "../../components/ui/icons";
   import { toast } from "../../utils/events";
   import { fetcher } from "../../utils/fetcher";
   import { groupsStore } from "../../data/groups.svelte";
@@ -23,7 +23,6 @@
   let hasInitialCheck = $state(false);
   let showSpeedtest = $state<string | null>(null);
 
-  // Stats
   let stats = $derived(groupsStore.stats);
 
   onMount(async () => {
@@ -76,7 +75,6 @@
     const systemIds = new Set(INTERFACES.map((i) => i.id));
     const aliasIds = Object.keys(aliases.all);
 
-    // known interfaces in system order
     const known = INTERFACES.map((item) => ({
       id: item.id,
       alias: aliases.all[item.id] || "",
@@ -84,7 +82,6 @@
       ip: item.ip,
     }));
 
-    // extra interfaces (orphaned aliases)
     const extra = aliasIds
       .filter((id) => !systemIds.has(id))
       .sort()
@@ -180,12 +177,12 @@
       {/if}
       <Tooltip value={t("Import Interface Config")}>
         <Button small onclick={triggerImport}>
-          <Upload size={20} />
+          <Import size={20} />
         </Button>
       </Tooltip>
       <Tooltip value={t("Export Interface Config")}>
         <Button small onclick={exportConfig}>
-          <Download size={20} />
+          <Export size={20} />
         </Button>
       </Tooltip>
       {#if hasChanges}
@@ -198,7 +195,6 @@
     </div>
   </div>
 
-  <!-- Global Stats Header Row -->
   <div class="stats-header-row">
     <div class="header-left">
       <div class="stat-header-col">
@@ -210,7 +206,6 @@
       </div>
     </div>
 
-    <!-- Right side aligns exactly with .interface-stats (300px grid) -->
     <div class="header-right">
       <div class="stat-header-col">
         <span class="stat-label">{t("Groups / Active")}</span>
@@ -347,12 +342,11 @@
     width: 100%;
   }
 
-  /* Header Row Alignment */
   .stats-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1rem; /* Match list padding */
+    padding: 0 1rem;
     margin-bottom: 1rem;
     gap: 1rem;
     color: var(--text-secondary);
@@ -362,18 +356,17 @@
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 2rem; /* More spacing for distinct columns */
-    padding-left: 1rem; /* Align/Pad similarly */
+    gap: 2rem;
+    padding-left: 1rem;
   }
 
   .header-right {
-    width: 300px; /* EXACT match of .interface-stats width */
+    width: 300px;
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 columns now */
+    grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
     flex-shrink: 0;
     padding-left: 1rem;
-    /* No border here in header to keep it clean */
   }
 
   .stat-header-col {
@@ -386,7 +379,7 @@
 
   .stat-label {
     font-weight: 500;
-    font-size: 0.7rem; /* Smaller label to fit header */
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     opacity: 0.7;
@@ -463,12 +456,12 @@
   }
 
   .interface-external-ip.success {
-    color: #10b981; /* Green */
+    color: #10b981;
   }
 
   .interface-external-ip.error {
     color: var(--danger);
-    font-size: 0.7rem; /* Slightly smaller for error message */
+    font-size: 0.7rem;
   }
 
   .interface-external-ip.loading {
@@ -502,7 +495,7 @@
     flex-shrink: 0;
   }
   .status-dot.active {
-    background-color: #10b981; /* Green */
+    background-color: #10b981;
     border-color: #059669;
     box-shadow: 0 0 5px rgba(16, 185, 129, 0.4);
   }
@@ -538,11 +531,11 @@
 
   .interface-stats {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2 columns now */
+    grid-template-columns: 1fr 1fr;
     width: 300px;
     gap: 0.5rem;
     align-items: center;
-    padding: 0 0.5rem; /* Balanced padding */
+    padding: 0 0.5rem;
     border-left: 1px solid var(--bg-light-extra);
     flex-shrink: 0;
   }
@@ -560,7 +553,7 @@
     border: 1px solid var(--bg-light-extra);
     white-space: nowrap;
     height: 100%;
-    text-align: center; /* Ensure text centering */
+    text-align: center;
   }
 
   .stat-label-mini {
@@ -607,7 +600,7 @@
     }
 
     .header h2 {
-      font-size: 1.25rem; /* Smaller title */
+      font-size: 1.25rem;
     }
 
     .actions {
@@ -635,7 +628,6 @@
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      /* padding-right removed, moved to col */
     }
 
     .stat-header-col {
@@ -645,7 +637,7 @@
       align-items: center;
       justify-content: space-between;
       width: 100%;
-      padding: 0.1rem 0.75rem 0.1rem 0; /* Right padding 1rem to frame it */
+      padding: 0.1rem 0.75rem 0.1rem 0;
       border: none;
       box-sizing: border-box;
     }
@@ -663,19 +655,18 @@
       flex-shrink: 0;
     }
 
-    /* Mobile Interface Card Styles */
     .interface-actions-row {
       position: absolute;
       top: 0.5rem;
       right: 0.5rem;
       padding: 0;
       margin: 0;
-      z-index: 2; /* Ensure button is clickcable */
+      z-index: 2;
     }
 
     .interface-info-wrapper {
       position: relative;
-      padding-left: 1rem; /* Space for status dot */
+      padding-left: 1rem;
       width: 100%;
     }
 
@@ -702,7 +693,7 @@
     }
 
     .interface-id {
-      margin-bottom: 0; /* Reset */
+      margin-bottom: 0;
     }
 
     .interface-stats {
@@ -712,7 +703,7 @@
       border-left: none;
       padding: 0;
       margin-top: 0.5rem;
-      gap: 0; /* Close gap */
+      gap: 0;
     }
 
     .stat-cell {
@@ -722,20 +713,19 @@
       width: 100%;
       height: auto;
       text-align: left;
-      padding: 0.25rem 0.5rem; /* Add horizontal padding */
+      padding: 0.25rem 0.5rem;
       border: none;
     }
   }
 
-  /* Desktop Default Styles for New Classes (Grid Layout) */
   .interface-main-content {
     display: grid;
-    grid-template-columns: 150px 1fr; /* Restore original 150px width for details column */
+    grid-template-columns: 150px 1fr;
     grid-template-areas:
       "id input"
       "ips input";
-    align-items: center; /* Vertically center input */
-    gap: 0 1rem; /* Gap between columns */
+    align-items: center;
+    gap: 0 1rem;
     flex: 1;
   }
 
@@ -751,7 +741,7 @@
   .interface-ip-group {
     grid-area: ips;
     display: flex;
-    flex-direction: column; /* Desktop: stacked IPs */
+    flex-direction: column;
     gap: 0;
   }
 
@@ -775,18 +765,17 @@
   .status-wrapper {
     display: flex;
     align-items: center;
-    width: 10px; /* Fixed width for status dot area */
+    width: 10px;
     justify-content: center;
   }
 
-  /* Mobile Adjustments */
   @media (max-width: 950px) {
     .interface-main-content {
       display: flex;
-      flex-direction: column; /* Stack vertically */
-      align-items: flex-start; /* Align left */
+      flex-direction: column;
+      align-items: flex-start;
       justify-content: flex-start;
-      gap: 0.25rem; /* Tighter gap for stack */
+      gap: 0.25rem;
       padding-right: 2.25rem;
       width: 100%;
       box-sizing: border-box;
@@ -800,7 +789,7 @@
 
     .status-wrapper {
       position: absolute;
-      top: 0.6rem; /* Align with input text roughly */
+      top: 0.6rem;
       left: 0;
       width: auto;
     }
@@ -818,14 +807,14 @@
     .interface-id {
       margin: 0;
       line-height: 1;
-      font-weight: bold; /* Make ID distinct if it was previously main */
+      font-weight: bold;
     }
 
     .alias-input {
       width: 100%;
       margin-top: 0;
       margin-bottom: 0.25rem;
-      order: -1; /* First */
+      order: -1;
       max-width: 100%;
       font-weight: 500;
     }

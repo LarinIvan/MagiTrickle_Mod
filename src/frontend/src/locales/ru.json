@@ -158,5 +158,6 @@
   "conflict.type.overlap": "Пересечение",
   "conflict.action.go": "Перейти →",
   "conflict.none": "Конфликтов не найдено",
-  "Delete": "Удалить"
+  "Delete": "Удалить",
+  "Request failed": "Не удалось выполнить запрос"
 }
