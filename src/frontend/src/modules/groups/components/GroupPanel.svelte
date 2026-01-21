@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Collapsible } from "bits-ui";
   import { slide } from "svelte/transition";
-  import { InfiniteLoader } from "svelte-infinite";
   import { createEventDispatcher } from "svelte";
+  import { InfiniteLoader } from "svelte-infinite";
 
   import { type Group, type Rule, type GroupDragData } from "../../../types";
   import { defaultRule } from "../../../utils/defaults";

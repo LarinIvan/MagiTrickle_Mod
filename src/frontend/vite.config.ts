@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { ViteMinifyPlugin  } from "vite-plugin-minify";
+import { ViteMinifyPlugin } from "vite-plugin-minify";
 
 export default defineConfig(() => ({
   plugins: [

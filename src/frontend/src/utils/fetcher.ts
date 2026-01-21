@@ -10,11 +10,16 @@ export async function fetcher<T>(...args: any[]): Promise<T> {
 
   try {
     const res = await fetch(`${API_BASE}${url}`, ...args);
-    if (!res.ok || res.status < 200 || res.status > 299) {
+
+    if (!res) {
+      throw new Error("No response from server (fetch returned undefined)");
+    }
+
+    if (!res.ok || (res.status && (res.status < 200 || res.status > 299))) {
       if (res.body) {
         throw new Error(await res.text());
       } else {
-        throw new Error(res.statusText);
+        throw new Error(res.statusText || "Unknown error");
       }
     }
     return (await res.json()) as T;

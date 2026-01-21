@@ -19,9 +19,15 @@
 
   let { interfaceId, interfaceName, interfaceIP, onClose }: Props = $props();
 
-  let currentInterfaceId = $state(interfaceId);
-  let currentInterfaceName = $state(interfaceName);
-  let currentInterfaceIP = $state(interfaceIP);
+  let currentInterfaceId = $state("");
+  let currentInterfaceName = $state("");
+  let currentInterfaceIP = $state<string | undefined>(undefined);
+
+  $effect(() => {
+    currentInterfaceId = interfaceId;
+    currentInterfaceName = interfaceName;
+    currentInterfaceIP = interfaceIP;
+  });
 
   let phase = $state<"init" | "ping" | "download" | "upload" | "loss" | "done">("init");
   let error = $state<string | null>(null);
